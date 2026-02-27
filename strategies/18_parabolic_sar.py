@@ -50,7 +50,14 @@ SAR随着趋势延续而加速收紧，形成"抛物线"形状，因此得名。
 【交易信号说明】
 做多信号：价格由下方上穿SAR（即价格 > SAR 且 前一根 价格 < 前一根 SAR）
 做空信号：价格由上方下穿SAR（即价格 < SAR 且 前一根 价格 > 前一根 SAR）
-平仓逻辑：发生反转时，先平对方向的仓位，再开新仓（止损并反向）
+平仓逻辑：发生反转时，通过 set_target_volume 切换方向（TargetPosTask 自动先平后开）
+
+【为何使用 TargetPosTask】
+本策略使用 TargetPosTask 替代直接调用 insert_order，原因如下：
+- TargetPosTask 内部自动处理追单、撤单、部分成交等复杂场景，无需手动管理订单状态
+- 只需指定目标持仓量（正数=多仓，负数=空仓，0=平仓），框架自动计算需要的净操作
+- 避免了先平后开的繁琐逻辑，代码更简洁、更健壮
+- 在网络延迟或行情快速变化时，TargetPosTask 能正确处理未成交订单的撤单重发
 
 【适用品种和周期】
 适用品种：趋势性强的品种，如原油SC、螺纹钢RB、铜CU、玉米C
@@ -83,7 +90,7 @@ DATA_LENGTH   : 历史K线数量，建议 > 100
 
 import numpy as np
 import pandas as pd
-from tqsdk import TqApi, TqAuth, TqSim
+from tqsdk import TqApi, TqAuth, TqSim, TargetPosTask
 
 # ==================== 策略参数配置 ====================
 SYMBOL         = "SHFE.rb2405"   # 交易品种：螺纹钢主力合约（原油可改为INE.sc2406）
@@ -201,10 +208,9 @@ def main():
     # 获取K线数据
     klines   = api.get_kline_serial(SYMBOL, KLINE_DURATION, data_length=DATA_LENGTH)
     account  = api.get_account()
-    position = api.get_position(SYMBOL)
 
-    # 记录上一根K线的SAR方向，用于检测反转
-    last_trend = None
+    # 初始化 TargetPosTask，自动管理持仓目标（自动处理追单/撤单/部分成交）
+    target_pos = TargetPosTask(api, SYMBOL)
 
     try:
         while True:
@@ -227,63 +233,22 @@ def main():
 
                 curr_close = close.iloc[-1]  # 当前收盘价
 
-                # ====== 读取持仓状态 ======
-                pos_long  = position.volume_long
-                pos_short = position.volume_short
-
                 print(f"[{klines.iloc[-1]['datetime']}] "
                       f"Close={curr_close:.2f}, SAR={curr_sar:.2f}, "
-                      f"趋势={'↑多' if curr_trend == 1 else '↓空'}, "
-                      f"多仓={pos_long}, 空仓={pos_short}")
+                      f"趋势={'↑多' if curr_trend == 1 else '↓空'}")
 
                 # ====== 检测趋势反转 ======
                 # 从下跌反转为上涨（价格上穿SAR）→ 做多
                 if curr_trend == 1 and prev_trend == -1:
                     print(f"  → SAR信号：上涨趋势（价格上穿SAR={curr_sar:.2f}）")
-
-                    # 先平空仓
-                    if pos_short > 0:
-                        api.insert_order(
-                            symbol    = SYMBOL,
-                            direction = "BUY",
-                            offset    = "CLOSE",
-                            volume    = pos_short
-                        )
-                        print(f"  → 平空仓 {pos_short}手")
-
-                    # 开多仓
-                    if pos_long == 0:
-                        api.insert_order(
-                            symbol    = SYMBOL,
-                            direction = "BUY",
-                            offset    = "OPEN",
-                            volume    = VOLUME
-                        )
-                        print(f"  → 开多仓 {VOLUME}手（SAR反转做多）")
+                    target_pos.set_target_volume(VOLUME)
+                    print(f"  → 开多仓 {VOLUME}手（SAR反转做多）")
 
                 # 从上涨反转为下跌（价格下穿SAR）→ 做空
                 elif curr_trend == -1 and prev_trend == 1:
                     print(f"  → SAR信号：下跌趋势（价格下穿SAR={curr_sar:.2f}）")
-
-                    # 先平多仓
-                    if pos_long > 0:
-                        api.insert_order(
-                            symbol    = SYMBOL,
-                            direction = "SELL",
-                            offset    = "CLOSE",
-                            volume    = pos_long
-                        )
-                        print(f"  → 平多仓 {pos_long}手")
-
-                    # 开空仓
-                    if pos_short == 0:
-                        api.insert_order(
-                            symbol    = SYMBOL,
-                            direction = "SELL",
-                            offset    = "OPEN",
-                            volume    = VOLUME
-                        )
-                        print(f"  → 开空仓 {VOLUME}手（SAR反转做空）")
+                    target_pos.set_target_volume(-VOLUME)
+                    print(f"  → 开空仓 {VOLUME}手（SAR反转做空）")
 
     finally:
         api.close()
