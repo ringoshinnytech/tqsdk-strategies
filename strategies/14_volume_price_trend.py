@@ -75,6 +75,13 @@ M期平均成交量：
 3. 期货连续合约换月时成交量会出现异常跳变
 4. 纯价格通道策略在区间震荡时会产生假信号
 
+【为何使用 TargetPosTask】
+本策略使用 TargetPosTask 替代直接调用 insert_order，原因如下：
+- TargetPosTask 内部自动处理追单、撤单、部分成交等复杂场景，无需手动管理订单状态
+- 只需指定目标持仓量（正数=多仓，负数=空仓，0=平仓），框架自动计算需要的净操作
+- 避免了先平后开的繁琐逻辑，代码更简洁、更健壮
+- 在网络延迟或行情快速变化时，TargetPosTask 能正确处理未成交订单的撤单重发
+
 【参数说明】
 - SYMBOL：交易合约，默认 SHFE.cu2506（沪铜）
 - BREAKOUT_N：价格通道周期（突破N期高低点），默认20
@@ -86,7 +93,7 @@ M期平均成交量：
 ================================================================================
 """
 
-from tqsdk import TqApi, TqAuth, TqSim
+from tqsdk import TqApi, TqAuth, TqSim, TargetPosTask
 from tqsdk.tafunc import hhv, llv, ma
 
 # ============================================================
@@ -114,6 +121,9 @@ klines = api.get_kline_serial(SYMBOL, KLINE_DURATION, data_length=DATA_LENGTH)
 
 # 订阅实时报价
 quote = api.get_quote(SYMBOL)
+
+# 初始化 TargetPosTask，自动管理持仓目标（自动处理追单/撤单/部分成交）
+target_pos = TargetPosTask(api, SYMBOL)
 
 print(f"[量价策略] 启动成功，交易品种：{SYMBOL}，K线周期：{KLINE_DURATION}秒")
 print(
@@ -180,106 +190,49 @@ try:
                 f"低={prev_channel_low:.2f}，量比={vol_ratio:.2f}x"
             )
 
-            # ---- 查询持仓 ----
-            position = api.get_position(SYMBOL)
-            volume_long = position.volume_long
-            volume_short = position.volume_short
+            # ---- 量价双重确认——判断是否放量（成交量倍数超过阈值）----
+            is_big_volume = vol_ratio >= VOL_MULTIPLIER
 
             # ---- 平仓逻辑（优先）----
 
             # 持多仓：价格回落到EXIT_N期低点（短期低点），说明趋势减弱，平多
-            if volume_long > 0:
-                if close_cur < exit_low:
-                    api.insert_order(
-                        symbol=SYMBOL,
-                        direction="SELL",
-                        offset="CLOSE",
-                        volume=volume_long,
-                        limit_price=quote.bid_price1
-                    )
-                    print(
-                        f"[量价策略] 平多仓：价格{close_cur:.2f} < "
-                        f"{EXIT_N}期低点{exit_low:.2f}，平{volume_long}手"
-                    )
-
             # 持空仓：价格反弹至EXIT_N期高点，说明空头趋势减弱，平空
-            if volume_short > 0:
-                if close_cur > exit_high:
-                    api.insert_order(
-                        symbol=SYMBOL,
-                        direction="BUY",
-                        offset="CLOSE",
-                        volume=volume_short,
-                        limit_price=quote.ask_price1
-                    )
-                    print(
-                        f"[量价策略] 平空仓：价格{close_cur:.2f} > "
-                        f"{EXIT_N}期高点{exit_high:.2f}，平{volume_short}手"
-                    )
+            # 注意：TargetPosTask 内部会读取当前持仓，无需手动查询 position
+            if close_cur < exit_low:
+                target_pos.set_target_volume(0)
+                print(
+                    f"[量价策略] 平多仓：价格{close_cur:.2f} < "
+                    f"{EXIT_N}期低点{exit_low:.2f}，平仓"
+                )
+            elif close_cur > exit_high:
+                target_pos.set_target_volume(0)
+                print(
+                    f"[量价策略] 平空仓：价格{close_cur:.2f} > "
+                    f"{EXIT_N}期高点{exit_high:.2f}，平仓"
+                )
 
             # ---- 开仓逻辑 ----
 
-            # 量价双重确认——判断是否放量（成交量倍数超过阈值）
-            is_big_volume = vol_ratio >= VOL_MULTIPLIER
-
             # 【开多信号】价格突破前N期收盘价高点 + 成交量放大
-            if (close_cur > prev_channel_high     # 价格突破N期最高价
-                    and is_big_volume              # 成交量放大确认
-                    and volume_long == 0):         # 当前无多仓
+            elif (close_cur > prev_channel_high     # 价格突破N期最高价
+                    and is_big_volume):             # 成交量放大确认
 
-                # 先平空仓（如有）
-                if volume_short > 0:
-                    api.insert_order(
-                        symbol=SYMBOL,
-                        direction="BUY",
-                        offset="CLOSE",
-                        volume=volume_short,
-                        limit_price=quote.ask_price1
-                    )
-                    print(f"[量价策略] 量价多头，先平空：{volume_short}手")
-
-                # 开多仓
-                api.insert_order(
-                    symbol=SYMBOL,
-                    direction="BUY",
-                    offset="OPEN",
-                    volume=VOLUME,
-                    limit_price=quote.ask_price1
-                )
+                target_pos.set_target_volume(VOLUME)
                 print(
                     f"[量价策略] 量价多头开多！"
                     f"价格={close_cur:.2f}>{prev_channel_high:.2f}，"
-                    f"量比={vol_ratio:.2f}x，开{VOLUME}手"
+                    f"量比={vol_ratio:.2f}x，目标{VOLUME}手"
                 )
 
             # 【开空信号】价格跌破前N期收盘价低点 + 成交量放大
             elif (close_cur < prev_channel_low    # 价格突破N期最低价
-                      and is_big_volume           # 成交量放大确认
-                      and volume_short == 0):     # 当前无空仓
+                      and is_big_volume):         # 成交量放大确认
 
-                # 先平多仓（如有）
-                if volume_long > 0:
-                    api.insert_order(
-                        symbol=SYMBOL,
-                        direction="SELL",
-                        offset="CLOSE",
-                        volume=volume_long,
-                        limit_price=quote.bid_price1
-                    )
-                    print(f"[量价策略] 量价空头，先平多：{volume_long}手")
-
-                # 开空仓
-                api.insert_order(
-                    symbol=SYMBOL,
-                    direction="SELL",
-                    offset="OPEN",
-                    volume=VOLUME,
-                    limit_price=quote.bid_price1
-                )
+                target_pos.set_target_volume(-VOLUME)
                 print(
                     f"[量价策略] 量价空头开空！"
                     f"价格={close_cur:.2f}<{prev_channel_low:.2f}，"
-                    f"量比={vol_ratio:.2f}x，开{VOLUME}手"
+                    f"量比={vol_ratio:.2f}x，目标{-VOLUME}手"
                 )
 
             else:
