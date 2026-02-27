@@ -49,6 +49,13 @@ StochRSI的优势在于它比RSI更加灵敏，能更早发现超买超卖状态
 平多信号：StochK 上穿 超买线（0.8），或StochK下穿StochD（反向交叉）
 平空信号：StochK 下穿 超卖线（0.2），或StochK上穿StochD（反向交叉）
 
+【为何使用 TargetPosTask】
+本策略使用 TargetPosTask 替代直接调用 insert_order，原因如下：
+- TargetPosTask 内部自动处理追单、撤单、部分成交等复杂场景，无需手动管理订单状态
+- 只需指定目标持仓量（正数=多仓，负数=空仓，0=平仓），框架自动计算需要的净操作
+- 避免了先平后开的繁琐逻辑，代码更简洁、更健壮
+- 在网络延迟或行情快速变化时，TargetPosTask 能正确处理未成交订单的撤单重发
+
 【适用品种和周期】
 适用品种：波动较活跃的期货，如黄金AU、白银AG、铜CU、原油SC、股指IF
 适用周期：1分钟~15分钟K线（该指标适合短线反转交易）
@@ -83,7 +90,7 @@ DATA_LENGTH   : 历史K线数量，建议 > (RSI_PERIOD + STOCH_PERIOD) × 3
 
 import numpy as np
 import pandas as pd
-from tqsdk import TqApi, TqAuth, TqSim
+from tqsdk import TqApi, TqAuth, TqSim, TargetPosTask
 from tqsdk.tafunc import ma, crossup, crossdown
 
 # ==================== 策略参数配置 ====================
@@ -162,7 +169,9 @@ def main():
     # 获取K线数据
     klines   = api.get_kline_serial(SYMBOL, KLINE_DURATION, data_length=DATA_LENGTH)
     account  = api.get_account()
-    position = api.get_position(SYMBOL)
+
+    # 初始化 TargetPosTask，自动管理持仓目标（自动处理追单/撤单/部分成交）
+    target_pos = TargetPosTask(api, SYMBOL)
 
     try:
         while True:
@@ -191,79 +200,30 @@ def main():
                 last_cross_up   = bool(cross_up_sig.iloc[-1])   # 最新K线是否发生上穿
                 last_cross_down = bool(cross_down_sig.iloc[-1]) # 最新K线是否发生下穿
 
-                # ====== 读取当前持仓 ======
-                pos_long  = position.volume_long
-                pos_short = position.volume_short
-
                 print(f"[{klines.iloc[-1]['datetime']}] "
-                      f"RSI={rsi_now:.2f}, K={k_now:.3f}, D={d_now:.3f}, "
-                      f"多={pos_long}, 空={pos_short}")
+                      f"RSI={rsi_now:.2f}, K={k_now:.3f}, D={d_now:.3f}")
 
                 # ====== 交易逻辑 ======
 
                 # --- 做多信号：K上穿D 且 K处于超卖区（< OVERSOLD） ---
                 if last_cross_up and k_now < OVERSOLD:
-                    if pos_short > 0:
-                        # 先平空仓
-                        api.insert_order(
-                            symbol    = SYMBOL,
-                            direction = "BUY",
-                            offset    = "CLOSE",
-                            volume    = pos_short
-                        )
-                        print(f"  → 平空仓 {pos_short}手")
-
-                    if pos_long == 0:
-                        # 开多仓：StochK从超卖区上穿D线，预示反弹
-                        api.insert_order(
-                            symbol    = SYMBOL,
-                            direction = "BUY",
-                            offset    = "OPEN",
-                            volume    = VOLUME
-                        )
-                        print(f"  → 开多仓 {VOLUME}手（StochK={k_now:.3f}上穿StochD，超卖反转）")
+                    target_pos.set_target_volume(VOLUME)
+                    print(f"  → 开多仓 {VOLUME}手（StochK={k_now:.3f}上穿StochD，超卖反转）")
 
                 # --- 做空信号：K下穿D 且 K处于超买区（> OVERBOUGHT） ---
                 elif last_cross_down and k_now > OVERBOUGHT:
-                    if pos_long > 0:
-                        # 先平多仓
-                        api.insert_order(
-                            symbol    = SYMBOL,
-                            direction = "SELL",
-                            offset    = "CLOSE",
-                            volume    = pos_long
-                        )
-                        print(f"  → 平多仓 {pos_long}手")
-
-                    if pos_short == 0:
-                        # 开空仓：StochK从超买区下穿D线，预示回落
-                        api.insert_order(
-                            symbol    = SYMBOL,
-                            direction = "SELL",
-                            offset    = "OPEN",
-                            volume    = VOLUME
-                        )
-                        print(f"  → 开空仓 {VOLUME}手（StochK={k_now:.3f}下穿StochD，超买回落）")
+                    target_pos.set_target_volume(-VOLUME)
+                    print(f"  → 开空仓 {VOLUME}手（StochK={k_now:.3f}下穿StochD，超买回落）")
 
                 # --- 持仓期间的止损/平仓逻辑 ---
                 # 多仓平仓：K值进入超买区（趋势可能反转）
-                elif pos_long > 0 and k_now > OVERBOUGHT:
-                    api.insert_order(
-                        symbol    = SYMBOL,
-                        direction = "SELL",
-                        offset    = "CLOSE",
-                        volume    = pos_long
-                    )
+                elif k_now > OVERBOUGHT:
+                    target_pos.set_target_volume(0)
                     print(f"  → 多仓止盈平仓（K={k_now:.3f}进入超买区）")
 
                 # 空仓平仓：K值进入超卖区（趋势可能反转）
-                elif pos_short > 0 and k_now < OVERSOLD:
-                    api.insert_order(
-                        symbol    = SYMBOL,
-                        direction = "BUY",
-                        offset    = "CLOSE",
-                        volume    = pos_short
-                    )
+                elif k_now < OVERSOLD:
+                    target_pos.set_target_volume(0)
                     print(f"  → 空仓止盈平仓（K={k_now:.3f}进入超卖区）")
 
     finally:
