@@ -63,8 +63,15 @@ TRIX的三次平滑使其相当于一个非常平滑的动量指标，其绕零�
   TRIX由正转负（下穿零轴）→ 中长期空头趋势确立
 
 平仓信号：
-  平多仓：TRIX下穿Signal或TRIX下穿零轴
-  平空仓：TRIX上穿Signal或TRIX上穿零轴
+  平多仓：TRIX下穿Signal或TRIX下穿零轴（set_target_volume(0)）
+  平空仓：TRIX上穿Signal或TRIX上穿零轴（set_target_volume(0)）
+
+【为何使用 TargetPosTask】
+本策略使用 TargetPosTask 替代直接调用 insert_order，原因如下：
+- TargetPosTask 内部自动处理追单、撤单、部分成交等复杂场景，无需手动管理订单状态
+- 只需指定目标持仓量（正数=多仓，负数=空仓，0=平仓），框架自动计算需要的净操作
+- 避免了先平后开的繁琐逻辑，代码更简洁、更健壮
+- 在网络延迟或行情快速变化时，TargetPosTask 能正确处理未成交订单的撤单重发
 
 【适用品种和周期】
 适用品种：趋势性较强的中大型合约，如黄金AU、原油SC、铜CU、螺纹钢RB
@@ -96,7 +103,7 @@ DATA_LENGTH   : 历史K线数量，建议 > TRIX_PERIOD × 10
 
 import numpy as np
 import pandas as pd
-from tqsdk import TqApi, TqAuth, TqSim
+from tqsdk import TqApi, TqAuth, TqSim, TargetPosTask
 from tqsdk.tafunc import ema, ma, crossup, crossdown
 
 # ==================== 策略参数配置 ====================
@@ -150,7 +157,9 @@ def main():
     # 获取K线数据
     klines   = api.get_kline_serial(SYMBOL, KLINE_DURATION, data_length=DATA_LENGTH)
     account  = api.get_account()
-    position = api.get_position(SYMBOL)
+
+    # 初始化 TargetPosTask，自动管理持仓目标（自动处理追单/撤单/部分成交）
+    target_pos = TargetPosTask(api, SYMBOL)
 
     try:
         while True:
@@ -182,97 +191,40 @@ def main():
                 trix_cross_zero_up   = (trix_prev < 0) and (trix_now >= 0)   # TRIX上穿零轴
                 trix_cross_zero_down = (trix_prev > 0) and (trix_now <= 0)   # TRIX下穿零轴
 
-                # ====== 读取持仓状态 ======
-                pos_long  = position.volume_long
-                pos_short = position.volume_short
-
                 print(f"[{klines.iloc[-1]['datetime']}] "
-                      f"TRIX={trix_now:.6f}%, Signal={signal_now:.6f}%, "
-                      f"多={pos_long}, 空={pos_short}")
+                      f"TRIX={trix_now:.6f}%, Signal={signal_now:.6f}%")
 
                 # ====== 交易逻辑 ======
 
                 # --- 做多信号1：TRIX上穿Signal，且TRIX在零轴上方（趋势确认） ---
                 if last_cross_up and trix_now > 0:
-                    if pos_short > 0:
-                        # 先平空仓
-                        api.insert_order(
-                            symbol    = SYMBOL,
-                            direction = "BUY",
-                            offset    = "CLOSE",
-                            volume    = pos_short
-                        )
-                        print(f"  → 平空仓 {pos_short}手")
-
-                    if pos_long == 0:
-                        api.insert_order(
-                            symbol    = SYMBOL,
-                            direction = "BUY",
-                            offset    = "OPEN",
-                            volume    = VOLUME
-                        )
-                        print(f"  → 开多仓 {VOLUME}手（TRIX={trix_now:.6f}%上穿Signal，零轴上方）")
+                    target_pos.set_target_volume(VOLUME)
+                    print(f"  → 开多仓 {VOLUME}手（TRIX={trix_now:.6f}%上穿Signal，零轴上方）")
 
                 # --- 做多信号2：TRIX上穿零轴（中期多头趋势确立） ---
-                elif trix_cross_zero_up and pos_long == 0 and pos_short == 0:
-                    api.insert_order(
-                        symbol    = SYMBOL,
-                        direction = "BUY",
-                        offset    = "OPEN",
-                        volume    = VOLUME
-                    )
+                elif trix_cross_zero_up:
+                    target_pos.set_target_volume(VOLUME)
                     print(f"  → 开多仓 {VOLUME}手（TRIX上穿零轴，中期多头确立）")
 
                 # --- 做空信号1：TRIX下穿Signal，且TRIX在零轴下方（趋势确认） ---
                 elif last_cross_down and trix_now < 0:
-                    if pos_long > 0:
-                        # 先平多仓
-                        api.insert_order(
-                            symbol    = SYMBOL,
-                            direction = "SELL",
-                            offset    = "CLOSE",
-                            volume    = pos_long
-                        )
-                        print(f"  → 平多仓 {pos_long}手")
-
-                    if pos_short == 0:
-                        api.insert_order(
-                            symbol    = SYMBOL,
-                            direction = "SELL",
-                            offset    = "OPEN",
-                            volume    = VOLUME
-                        )
-                        print(f"  → 开空仓 {VOLUME}手（TRIX={trix_now:.6f}%下穿Signal，零轴下方）")
+                    target_pos.set_target_volume(-VOLUME)
+                    print(f"  → 开空仓 {VOLUME}手（TRIX={trix_now:.6f}%下穿Signal，零轴下方）")
 
                 # --- 做空信号2：TRIX下穿零轴（中期空头趋势确立） ---
-                elif trix_cross_zero_down and pos_long == 0 and pos_short == 0:
-                    api.insert_order(
-                        symbol    = SYMBOL,
-                        direction = "SELL",
-                        offset    = "OPEN",
-                        volume    = VOLUME
-                    )
+                elif trix_cross_zero_down:
+                    target_pos.set_target_volume(-VOLUME)
                     print(f"  → 开空仓 {VOLUME}手（TRIX下穿零轴，中期空头确立）")
 
                 # --- 平多仓：TRIX下穿Signal（趋势减弱，止盈） ---
-                elif pos_long > 0 and last_cross_down:
-                    api.insert_order(
-                        symbol    = SYMBOL,
-                        direction = "SELL",
-                        offset    = "CLOSE",
-                        volume    = pos_long
-                    )
-                    print(f"  → 平多仓 {pos_long}手（TRIX下穿Signal，止盈离场）")
+                elif last_cross_down:
+                    target_pos.set_target_volume(0)
+                    print(f"  → 平多仓（TRIX下穿Signal，止盈离场）")
 
                 # --- 平空仓：TRIX上穿Signal（趋势减弱，止盈） ---
-                elif pos_short > 0 and last_cross_up:
-                    api.insert_order(
-                        symbol    = SYMBOL,
-                        direction = "BUY",
-                        offset    = "CLOSE",
-                        volume    = pos_short
-                    )
-                    print(f"  → 平空仓 {pos_short}手（TRIX上穿Signal，止盈离场）")
+                elif last_cross_up:
+                    target_pos.set_target_volume(0)
+                    print(f"  → 平空仓（TRIX上穿Signal，止盈离场）")
 
     finally:
         api.close()
