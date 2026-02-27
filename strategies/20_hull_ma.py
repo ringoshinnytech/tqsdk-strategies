@@ -47,10 +47,17 @@ Hull MA的核心思想：
 做多信号：HMA斜率由负转正（HMA当前 > HMA上一根，且上上根时HMA曾 <= 上一根）
           简化：HMA当前 > HMA上一根（当前在上升中）
 做空信号：HMA斜率由正转负（HMA当前 < HMA上一根）
-平多仓：HMA开始下降时平仓
-平空仓：HMA开始上升时平仓
+平多仓：HMA开始下降时平仓（set_target_volume(0)）
+平空仓：HMA开始上升时平仓（set_target_volume(0)）
 
 进阶版：检测HMA斜率的二阶变化（拐点），即斜率从正到负或从负到正的精确时刻入场
+
+【为何使用 TargetPosTask】
+本策略使用 TargetPosTask 替代直接调用 insert_order，原因如下：
+- TargetPosTask 内部自动处理追单、撤单、部分成交等复杂场景，无需手动管理订单状态
+- 只需指定目标持仓量（正数=多仓，负数=空仓，0=平仓），框架自动计算需要的净操作
+- 避免了先平后开的繁琐逻辑，代码更简洁、更健壮
+- 在网络延迟或行情快速变化时，TargetPosTask 能正确处理未成交订单的撤单重发
 
 【适用品种和周期】
 适用品种：几乎所有期货品种，趋势性强的品种效果更好（如原油SC、螺纹钢RB、铜CU）
@@ -81,7 +88,7 @@ DATA_LENGTH   : 历史K线数量，建议 > HMA_PERIOD × 3
 
 import numpy as np
 import pandas as pd
-from tqsdk import TqApi, TqAuth, TqSim
+from tqsdk import TqApi, TqAuth, TqSim, TargetPosTask
 
 # ==================== 策略参数配置 ====================
 SYMBOL         = "SHFE.rb2405"   # 交易品种：螺纹钢主力合约
@@ -150,7 +157,9 @@ def main():
     # 获取K线数据
     klines   = api.get_kline_serial(SYMBOL, KLINE_DURATION, data_length=DATA_LENGTH)
     account  = api.get_account()
-    position = api.get_position(SYMBOL)
+
+    # 初始化 TargetPosTask，自动管理持仓目标（自动处理追单/撤单/部分成交）
+    target_pos = TargetPosTask(api, SYMBOL)
 
     try:
         while True:
@@ -179,82 +188,34 @@ def main():
                 # HMA斜率刚由正变负（拐点）→ 做空信号
                 signal_short = (not hma_rising) and (hma_prev > hma_pp)
 
-                # ====== 读取持仓状态 ======
-                pos_long  = position.volume_long
-                pos_short = position.volume_short
                 curr_close = close.iloc[-1]
 
                 print(f"[{klines.iloc[-1]['datetime']}] "
                       f"Close={curr_close:.2f}, HMA={hma_now:.2f}, "
-                      f"方向={'↑上升' if hma_rising else '↓下降'}, "
-                      f"多={pos_long}, 空={pos_short}")
+                      f"方向={'↑上升' if hma_rising else '↓下降'}")
 
                 # ====== 交易逻辑 ======
 
                 # --- 做多信号：HMA斜率由负转正（上升拐点） ---
                 if signal_long:
-                    # 先平空仓
-                    if pos_short > 0:
-                        api.insert_order(
-                            symbol    = SYMBOL,
-                            direction = "BUY",
-                            offset    = "CLOSE",
-                            volume    = pos_short
-                        )
-                        print(f"  → 平空仓 {pos_short}手（HMA转向上）")
-
-                    # 开多仓
-                    if pos_long == 0:
-                        api.insert_order(
-                            symbol    = SYMBOL,
-                            direction = "BUY",
-                            offset    = "OPEN",
-                            volume    = VOLUME
-                        )
-                        print(f"  → 开多仓 {VOLUME}手（HMA斜率拐点：{hma_prev:.2f}→{hma_now:.2f}↑）")
+                    target_pos.set_target_volume(VOLUME)
+                    print(f"  → 开多仓 {VOLUME}手（HMA斜率拐点：{hma_prev:.2f}→{hma_now:.2f}↑）")
 
                 # --- 做空信号：HMA斜率由正转负（下降拐点） ---
                 elif signal_short:
-                    # 先平多仓
-                    if pos_long > 0:
-                        api.insert_order(
-                            symbol    = SYMBOL,
-                            direction = "SELL",
-                            offset    = "CLOSE",
-                            volume    = pos_long
-                        )
-                        print(f"  → 平多仓 {pos_long}手（HMA转向下）")
-
-                    # 开空仓
-                    if pos_short == 0:
-                        api.insert_order(
-                            symbol    = SYMBOL,
-                            direction = "SELL",
-                            offset    = "OPEN",
-                            volume    = VOLUME
-                        )
-                        print(f"  → 开空仓 {VOLUME}手（HMA斜率拐点：{hma_prev:.2f}→{hma_now:.2f}↓）")
+                    target_pos.set_target_volume(-VOLUME)
+                    print(f"  → 开空仓 {VOLUME}手（HMA斜率拐点：{hma_prev:.2f}→{hma_now:.2f}↓）")
 
                 # --- 趋势跟随止损：若HMA方向与持仓方向相反，平仓 ---
-                elif pos_long > 0 and not hma_rising:
-                    # 持多仓但HMA在下降，趋势不支持多头
-                    api.insert_order(
-                        symbol    = SYMBOL,
-                        direction = "SELL",
-                        offset    = "CLOSE",
-                        volume    = pos_long
-                    )
-                    print(f"  → 平多仓 {pos_long}手（HMA持续下降，止损）")
+                elif not hma_rising:
+                    # HMA在下降，不支持多头
+                    target_pos.set_target_volume(0)
+                    print(f"  → 平多仓（HMA持续下降，止损）")
 
-                elif pos_short > 0 and hma_rising:
-                    # 持空仓但HMA在上升，趋势不支持空头
-                    api.insert_order(
-                        symbol    = SYMBOL,
-                        direction = "BUY",
-                        offset    = "CLOSE",
-                        volume    = pos_short
-                    )
-                    print(f"  → 平空仓 {pos_short}手（HMA持续上升，止损）")
+                elif hma_rising:
+                    # HMA在上升，不支持空头
+                    target_pos.set_target_volume(0)
+                    print(f"  → 平空仓（HMA持续上升，止损）")
 
     finally:
         api.close()
