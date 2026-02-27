@@ -1,6 +1,6 @@
 # TqSdk 量化交易策略集
 
-> 基于 [天勤量化 TqSdk](https://github.com/shinnytech/tqsdk-python) 实现的期货量化交易策略示例集合，每个策略附有 **500字以上的详细中文思路讲解** + 完整注释代码。
+> 基于 [天勤量化 TqSdk](https://github.com/shinnytech/tqsdk-python) 实现的期货量化交易策略示例集合，每个策略附有完整中文注释和详细策略思路讲解。
 
 ---
 
@@ -80,34 +80,11 @@ pip install tqsdk -U -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host=
 from tqsdk import TqApi, TqAuth
 
 api = TqApi(auth=TqAuth("快期账户", "账户密码"))
-quote = api.get_quote("SHFE.rb2501")  # 订阅螺纹钢行情
+quote = api.get_quote("SHFE.rb2501")
 
 while True:
     api.wait_update()
     print(quote.last_price, quote.volume)
-```
-
-### 获取 K 线数据
-
-```python
-# 获取 1 分钟 K 线（返回 pandas.DataFrame）
-klines = api.get_kline_serial("SHFE.rb2501", 60)
-
-while True:
-    api.wait_update()
-    print("最新收盘价:", klines.close.iloc[-1])
-```
-
-### 下单交易
-
-```python
-# 买入开仓 1 手
-order = api.insert_order(
-    symbol="SHFE.rb2501",
-    direction="BUY",
-    offset="OPEN",
-    volume=1
-)
 ```
 
 ### 策略回测
@@ -124,70 +101,59 @@ api = TqApi(
 
 ---
 
-## 📁 策略列表
+## 📁 策略列表（25个）
 
-> 每个策略文件均包含：**500字以上策略思路讲解**（背景、逻辑、公式、信号、适用场景、优缺点）+ 完整可运行代码 + 详细中文注释
+> 每个策略文件包含：**500字以上策略思路讲解 + 完整可运行代码 + 详细中文注释**
 
-### 基础趋势策略
+### 趋势跟踪类
 
-| 编号 | 文件 | 策略名称 | 核心逻辑 |
-|------|------|---------|---------|
-| 01 | [01_double_ma.py](strategies/01_double_ma.py) | 双均线趋势策略 | MA5/MA20 金叉做多、死叉做空 |
-| 02 | [02_boll_breakout.py](strategies/02_boll_breakout.py) | 布林带突破策略 | 上轨突破做多、下轨跌破做空、带宽过滤 |
-| 06 | [06_macd_trend.py](strategies/06_macd_trend.py) | MACD 趋势策略 | DIF/DEA 金叉死叉，持仓反手型 |
-| 20 | [20_hull_ma.py](strategies/20_hull_ma.py) | Hull 移动平均线策略 | 减少均线滞后的快速趋势均线 |
-| 22 | [22_trix_trend.py](strategies/22_trix_trend.py) | TRIX 三重指数平均策略 | 三重EMA变化率，过滤短期噪音 |
-| 25 | [25_multiperiod_ma.py](strategies/25_multiperiod_ma.py) | 多周期均线共振策略 | 日线+小时线+15分钟三重过滤共振入场 |
+| 策略文件 | 策略名称 | 核心逻辑 |
+|---------|---------|---------|
+| [01_double_ma.py](strategies/01_double_ma.py) | 双均线趋势策略 | MA5/MA20 金叉做多、死叉做空 |
+| [06_macd_trend.py](strategies/06_macd_trend.py) | MACD 趋势策略 | DIF/DEA 金叉死叉，动能确认趋势方向 |
+| [16_aroon_trend.py](strategies/16_aroon_trend.py) | Aroon 指标趋势策略 | Aroon Up/Down 强弱对比判断趋势 |
+| [20_hull_ma.py](strategies/20_hull_ma.py) | Hull 移动平均线策略 | 减少均线滞后的 WMA 加权趋势跟踪 |
+| [22_trix_trend.py](strategies/22_trix_trend.py) | TRIX 三重指数策略 | 三重EMA变化率，过滤短期噪音 |
+| [25_multiperiod_ma.py](strategies/25_multiperiod_ma.py) | 多周期均线共振策略 | 日/小时/分钟三周期均线方向一致才入场 |
 
-### 突破策略
+### 突破类
 
-| 编号 | 文件 | 策略名称 | 核心逻辑 |
-|------|------|---------|---------|
-| 04 | [04_dual_thrust.py](strategies/04_dual_thrust.py) | Dual Thrust 日内突破 | 开盘价±Range 动态轨道，日内平仓 |
-| 08 | [08_cci_breakout.py](strategies/08_cci_breakout.py) | CCI 顺势指标策略 | 突破±100反向，突破±200顺势 |
-| 10 | [10_momentum_breakout.py](strategies/10_momentum_breakout.py) | 价格动量突破策略 | N日涨跌幅动量信号 |
-| 13 | [13_opening_range_breakout.py](strategies/13_opening_range_breakout.py) | 开盘区间突破策略 | 开盘30分钟高低点作为当日突破区间 |
-| 15 | [15_donchian_channel.py](strategies/15_donchian_channel.py) | 唐奇安通道策略 | N日高低价通道突破入场，M日通道出场 |
-| 21 | [21_keltner_channel.py](strategies/21_keltner_channel.py) | 肯特纳通道策略 | EMA±ATR 构建通道，价格突破做趋势 |
-| 24 | [24_rbreaker.py](strategies/24_rbreaker.py) | R-Breaker 日内策略 | 6条价格线：突破买卖、观察、反转 |
+| 策略文件 | 策略名称 | 核心逻辑 |
+|---------|---------|---------|
+| [02_boll_breakout.py](strategies/02_boll_breakout.py) | 布林带突破策略 | 上轨突破做多、下轨跌破做空、带宽过滤 |
+| [08_cci_breakout.py](strategies/08_cci_breakout.py) | CCI 顺势指标策略 | ±100 反向、±200 顺势突破 |
+| [10_momentum_breakout.py](strategies/10_momentum_breakout.py) | 价格动量突破策略 | N 日涨跌幅动量信号触发入场 |
+| [13_opening_range_breakout.py](strategies/13_opening_range_breakout.py) | 开盘区间突破策略 | 开盘前30分钟高低点作为当日突破区间 |
+| [15_donchian_channel.py](strategies/15_donchian_channel.py) | 唐奇安通道策略 | N 日最高最低价通道突破入场 |
+| [21_keltner_channel.py](strategies/21_keltner_channel.py) | 肯特纳通道策略 | EMA±ATR 通道，价格突破做趋势 |
 
-### 均值回归策略
+### 均值回归类
 
-| 编号 | 文件 | 策略名称 | 核心逻辑 |
-|------|------|---------|---------|
-| 03 | [03_rsi_mean_reversion.py](strategies/03_rsi_mean_reversion.py) | RSI 均值回归策略 | RSI<30 超卖做多、RSI>70 超买做空 |
-| 07 | [07_kdj_signal.py](strategies/07_kdj_signal.py) | KDJ 随机指标策略 | K/D/J线超买超卖，金叉死叉信号 |
-| 11 | [11_mean_reversion_zscore.py](strategies/11_mean_reversion_zscore.py) | Z-Score 均值回归策略 | 价格偏离均值N个标准差后回归 |
-| 17 | [17_stochastic_rsi.py](strategies/17_stochastic_rsi.py) | 随机 RSI 策略 | RSI再做随机指标，更灵敏的超买超卖 |
-| 19 | [19_williams_r.py](strategies/19_williams_r.py) | 威廉指标策略 | %R超买超卖，日内情绪指标 |
-| 23 | [23_pivot_point.py](strategies/23_pivot_point.py) | 枢轴点支撑阻力策略 | 昨日高低收计算今日支撑阻力，关键位反转 |
+| 策略文件 | 策略名称 | 核心逻辑 |
+|---------|---------|---------|
+| [03_rsi_mean_reversion.py](strategies/03_rsi_mean_reversion.py) | RSI 均值回归策略 | RSI<30 超卖做多、RSI>70 超买做空 |
+| [07_kdj_signal.py](strategies/07_kdj_signal.py) | KDJ 随机指标策略 | K/D/J 线超买超卖，随机波动捕捉反转 |
+| [11_mean_reversion_zscore.py](strategies/11_mean_reversion_zscore.py) | Z-Score 均值回归策略 | 价格偏离均值 N 个标准差后回归 |
+| [17_stochastic_rsi.py](strategies/17_stochastic_rsi.py) | 随机 RSI 策略 | 对 RSI 再做随机处理，更灵敏的超买超卖 |
+| [19_williams_r.py](strategies/19_williams_r.py) | 威廉指标策略 | %R 超买超卖，日内情绪指标 |
+| [23_pivot_point.py](strategies/23_pivot_point.py) | 枢轴点支撑阻力策略 | 昨日高低收计算今日支撑阻力，关键位反转 |
 
-### 趋势跟踪策略
+### 日内策略类
 
-| 编号 | 文件 | 策略名称 | 核心逻辑 |
-|------|------|---------|---------|
-| 05 | [05_turtle_trading.py](strategies/05_turtle_trading.py) | 海龟交易策略 | 唐奇安通道突破 + ATR 仓位管理 |
-| 09 | [09_atr_stop_loss.py](strategies/09_atr_stop_loss.py) | ATR 动态止损策略 | 均线趋势入场 + ATR 追踪止损出场 |
-| 16 | [16_aroon_trend.py](strategies/16_aroon_trend.py) | Aroon 指标趋势策略 | Aroon Up/Down 强弱对比判断趋势 |
-| 18 | [18_parabolic_sar.py](strategies/18_parabolic_sar.py) | 抛物线转向策略 | SAR 跟踪止损点，价格穿越SAR转向 |
+| 策略文件 | 策略名称 | 核心逻辑 |
+|---------|---------|---------|
+| [04_dual_thrust.py](strategies/04_dual_thrust.py) | Dual Thrust 日内突破 | 开盘价±Range 动态轨道，收盘前强制平仓 |
+| [24_r_breaker.py](strategies/24_r_breaker.py) | R-Breaker 日内策略 | 6条价格线：突破/观察/反转三类信号 |
 
-### 其他策略
+### 系统化/风控类
 
-| 编号 | 文件 | 策略名称 | 核心逻辑 |
-|------|------|---------|---------|
-| 12 | [12_grid_trading.py](strategies/12_grid_trading.py) | 网格交易策略 | 价格区间内按网格间距自动挂单 |
-| 14 | [14_volume_price_trend.py](strategies/14_volume_price_trend.py) | 量价趋势策略 | 成交量配合价格突破验证信号有效性 |
-
----
-
-## 🗓️ 自动更新
-
-本仓库由 AI Agent 每日自动新增 **2 个策略**，持续更新中。
-
-每个新策略包含：
-- 📝 **500字以上策略思路讲解**（背景、逻辑、公式、信号、优缺点）
-- 💻 **完整可运行的 tqsdk 代码**
-- 💬 **详细中文行内注释**
+| 策略文件 | 策略名称 | 核心逻辑 |
+|---------|---------|---------|
+| [05_turtle_trading.py](strategies/05_turtle_trading.py) | 海龟交易策略 | 唐奇安通道突破 + ATR 仓位管理 |
+| [09_atr_stop_loss.py](strategies/09_atr_stop_loss.py) | ATR 动态止损策略 | 均线趋势入场 + ATR 追踪止损出场 |
+| [12_grid_trading.py](strategies/12_grid_trading.py) | 网格交易策略 | 价格区间内按网格间距自动挂单买卖 |
+| [14_volume_price_trend.py](strategies/14_volume_price_trend.py) | 量价趋势策略 | 成交量配合价格突破做信号验证 |
+| [18_parabolic_sar.py](strategies/18_parabolic_sar.py) | 抛物线转向策略 | SAR 跟踪止损点，价格穿越 SAR 转向 |
 
 ---
 
@@ -206,23 +172,21 @@ api = TqApi(
    pip install tqsdk -U
    ```
 
-3. **配置账户**
-
-   在各策略文件中替换占位符为你的快期账户：
-
-   ```python
-   auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD")
-   # 替换为：
-   auth=TqAuth("你的快期账号", "你的快期密码")
-   ```
-
-   > 注册快期账户：https://account.shinnytech.com/
+3. **配置账户**  
+   在策略文件中替换 `YOUR_ACCOUNT` / `YOUR_PASSWORD` 为你的快期账户信息。  
+   注册快期账户：https://account.shinnytech.com/
 
 4. **运行策略（模拟模式）**
 
    ```bash
    python strategies/01_double_ma.py
    ```
+
+---
+
+## 📅 更新计划
+
+本仓库每天自动新增 **2 个策略**，持续扩充策略库。
 
 ---
 
@@ -237,4 +201,5 @@ api = TqApi(
 
 ## 📄 许可证
 
-本项目基于 [MIT License](LICENSE) 开源。TqSdk 本身基于 [Apache-2.0 License](https://github.com/shinnytech/tqsdk-python/blob/master/LICENSE)。
+本项目基于 [MIT License](LICENSE) 开源。  
+TqSdk 本身基于 [Apache-2.0 License](https://github.com/shinnytech/tqsdk-python/blob/master/LICENSE)。
