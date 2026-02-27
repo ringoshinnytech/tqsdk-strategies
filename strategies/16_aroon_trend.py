@@ -41,8 +41,15 @@ Aroon指标包含两条线：
 【交易信号说明】
 开多仓：Aroon Up 上穿 Aroon Down（crossup），且 Aroon Up > 阈值（默认70）
 开空仓：Aroon Down 上穿 Aroon Up（crossup），且 Aroon Down > 阈值（默认70）
-平多仓：Aroon Down 上穿 Aroon Up，即趋势反转
-平空仓：Aroon Up 上穿 Aroon Down，即趋势反转
+平多仓：Aroon Down 上穿 Aroon Up，即趋势反转（set_target_volume(0)）
+平空仓：Aroon Up 上穿 Aroon Down，即趋势反转（set_target_volume(0)）
+
+【为何使用 TargetPosTask】
+本策略使用 TargetPosTask 替代直接调用 insert_order，原因如下：
+- TargetPosTask 内部自动处理追单、撤单、部分成交等复杂场景，无需手动管理订单状态
+- 只需指定目标持仓量（正数=多仓，负数=空仓，0=平仓），框架自动计算需要的净操作
+- 避免了先平后开的繁琐逻辑，代码更简洁、更健壮
+- 在网络延迟或行情快速变化时，TargetPosTask 能正确处理未成交订单的撤单重发
 
 【适用品种和周期】
 适用品种：趋势性较强的商品期货，如原油（SC）、铜（CU）、黄金（AU）、螺纹钢（RB）
@@ -73,7 +80,7 @@ DATA_LENGTH   : 历史K线数量，建议 > AROON_PERIOD × 3
 """
 
 import numpy as np
-from tqsdk import TqApi, TqAuth, TqSim
+from tqsdk import TqApi, TqAuth, TqSim, TargetPosTask
 from tqsdk.tafunc import crossup, crossdown
 
 # ==================== 策略参数配置 ====================
@@ -130,9 +137,11 @@ def main():
     # 获取K线数据（返回pandas DataFrame）
     klines = api.get_kline_serial(SYMBOL, KLINE_DURATION, data_length=DATA_LENGTH)
 
-    # 获取账户与持仓信息
+    # 获取账户信息
     account  = api.get_account()
-    position = api.get_position(SYMBOL)
+
+    # 初始化 TargetPosTask，自动管理持仓目标（自动处理追单/撤单/部分成交）
+    target_pos = TargetPosTask(api, SYMBOL)
 
     try:
         while True:
@@ -165,59 +174,20 @@ def main():
                 last_cross_up      = bool(cross_up_signal.iloc[-1])    # 是否刚发生Up上穿
                 last_cross_down    = bool(cross_down_signal.iloc[-1])  # 是否刚发生Down上穿
 
-                # ====== 读取当前持仓状态 ======
-                pos_long  = position.volume_long   # 多仓持仓量
-                pos_short = position.volume_short  # 空仓持仓量
-
                 print(f"[{klines.iloc[-1]['datetime']}] "
-                      f"AroonUp={last_aroon_up:.1f}, AroonDown={last_aroon_down:.1f}, "
-                      f"多仓={pos_long}, 空仓={pos_short}")
+                      f"AroonUp={last_aroon_up:.1f}, AroonDown={last_aroon_down:.1f}")
 
                 # ====== 交易逻辑 ======
 
                 # --- 开多信号：Aroon Up 上穿 Aroon Down，且 Aroon Up 超过阈值 ---
                 if last_cross_up and last_aroon_up > AROON_THRESH:
-                    if pos_short > 0:
-                        # 先平掉空仓
-                        api.insert_order(
-                            symbol    = SYMBOL,
-                            direction = "BUY",       # 买入
-                            offset    = "CLOSE",     # 平仓
-                            volume    = pos_short    # 平全部空仓
-                        )
-                        print(f"  → 平空仓 {pos_short}手")
-
-                    if pos_long == 0:
-                        # 开多仓
-                        api.insert_order(
-                            symbol    = SYMBOL,
-                            direction = "BUY",   # 买入方向
-                            offset    = "OPEN",  # 开仓
-                            volume    = VOLUME   # 手数
-                        )
-                        print(f"  → 开多仓 {VOLUME}手（Aroon Up={last_aroon_up:.1f} 上穿 AroonDown）")
+                    target_pos.set_target_volume(VOLUME)
+                    print(f"  → 开多仓 {VOLUME}手（Aroon Up={last_aroon_up:.1f} 上穿 AroonDown）")
 
                 # --- 开空信号：Aroon Down 上穿 Aroon Up，且 Aroon Down 超过阈值 ---
                 elif last_cross_down and last_aroon_down > AROON_THRESH:
-                    if pos_long > 0:
-                        # 先平掉多仓
-                        api.insert_order(
-                            symbol    = SYMBOL,
-                            direction = "SELL",   # 卖出
-                            offset    = "CLOSE",  # 平仓
-                            volume    = pos_long  # 平全部多仓
-                        )
-                        print(f"  → 平多仓 {pos_long}手")
-
-                    if pos_short == 0:
-                        # 开空仓
-                        api.insert_order(
-                            symbol    = SYMBOL,
-                            direction = "SELL",  # 卖出方向
-                            offset    = "OPEN",  # 开仓
-                            volume    = VOLUME   # 手数
-                        )
-                        print(f"  → 开空仓 {VOLUME}手（Aroon Down={last_aroon_down:.1f} 上穿 AroonUp）")
+                    target_pos.set_target_volume(-VOLUME)
+                    print(f"  → 开空仓 {VOLUME}手（Aroon Down={last_aroon_down:.1f} 上穿 AroonUp）")
 
     finally:
         api.close()
