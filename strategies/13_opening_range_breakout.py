@@ -85,7 +85,7 @@ Breakout》中系统性地提出和验证的。该策略认为，开盘后的前
 ================================================================================
 """
 
-from tqsdk import TqApi, TqAuth, TqSim
+from tqsdk import TqApi, TqAuth, TqSim, TargetPosTask
 from tqsdk.tafunc import hhv, llv
 import datetime
 
@@ -155,6 +155,9 @@ def reset_daily_state():
 # 主循环
 # ============================================================
 try:
+    # TargetPosTask：只需声明目标仓位，自动处理追单/撤单/部分成交
+    target_pos = TargetPosTask(api, SYMBOL)
+
     while True:
         api.wait_update()
 
@@ -176,24 +179,11 @@ try:
             # ---- 强制平仓：收盘前固定时间 ----
             close_time = datetime.time(CLOSE_HOUR, CLOSE_MIN)
             if bar_time >= close_time:
-                position = api.get_position(SYMBOL)
                 if position.volume_long > 0:
-                    api.insert_order(
-                        symbol=SYMBOL,
-                        direction="SELL",
-                        offset="CLOSE",
-                        volume=position.volume_long,
-                        limit_price=quote.bid_price1
-                    )
+                    target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
                     print(f"[ORB策略] 收盘强制平多：{position.volume_long}手")
                 if position.volume_short > 0:
-                    api.insert_order(
-                        symbol=SYMBOL,
-                        direction="BUY",
-                        offset="CLOSE",
-                        volume=position.volume_short,
-                        limit_price=quote.ask_price1
-                    )
+                    target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
                     print(f"[ORB策略] 收盘强制平空：{position.volume_short}手")
                 continue  # 收盘时间后不再执行其他逻辑
 
@@ -239,18 +229,11 @@ try:
                 orb_range = orb_high - orb_low  # 区间宽度
                 stop_dist = orb_range * STOP_LOSS_MULTIPLIER  # 止损距离
 
-                position = api.get_position(SYMBOL)
 
                 # ---- 止损检查（持仓时实时监控）----
                 if stop_loss_price is not None:
                     if position.volume_long > 0 and current_price < stop_loss_price:
-                        api.insert_order(
-                            symbol=SYMBOL,
-                            direction="SELL",
-                            offset="CLOSE",
-                            volume=position.volume_long,
-                            limit_price=quote.bid_price1
-                        )
+                        target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
                         print(
                             f"[ORB策略] 多仓止损触发：价格={current_price:.2f}，"
                             f"止损线={stop_loss_price:.2f}"
@@ -259,13 +242,7 @@ try:
                         continue
 
                     if position.volume_short > 0 and current_price > stop_loss_price:
-                        api.insert_order(
-                            symbol=SYMBOL,
-                            direction="BUY",
-                            offset="CLOSE",
-                            volume=position.volume_short,
-                            limit_price=quote.ask_price1
-                        )
+                        target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
                         print(
                             f"[ORB策略] 空仓止损触发：价格={current_price:.2f}，"
                             f"止损线={stop_loss_price:.2f}"
@@ -278,13 +255,7 @@ try:
 
                     # 【向上突破】价格突破区间高点，做多
                     if current_price > orb_high:
-                        api.insert_order(
-                            symbol=SYMBOL,
-                            direction="BUY",
-                            offset="OPEN",
-                            volume=VOLUME,
-                            limit_price=quote.ask_price1
-                        )
+                        target_pos.set_target_volume(VOLUME)   # 做多：TargetPosTask自动追单到目标仓位
                         stop_loss_price = current_price - stop_dist  # 设置止损价
                         traded_today = True  # 标记今日已交易（只交易一次）
                         print(
@@ -295,13 +266,7 @@ try:
 
                     # 【向下突破】价格跌破区间低点，做空
                     elif current_price < orb_low:
-                        api.insert_order(
-                            symbol=SYMBOL,
-                            direction="SELL",
-                            offset="OPEN",
-                            volume=VOLUME,
-                            limit_price=quote.bid_price1
-                        )
+                        target_pos.set_target_volume(-VOLUME)  # 做空：TargetPosTask自动追单到目标仓位
                         stop_loss_price = current_price + stop_dist  # 设置止损价
                         traded_today = True
                         print(
