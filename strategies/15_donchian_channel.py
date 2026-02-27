@@ -38,10 +38,17 @@ Middle_N = (Upper_N + Lower_N) / 2
 
 【交易信号说明】
 1. 等待价格突破N期通道上/下轨（已完成K线收盘价确认）
-2. 突破上轨且无多仓：平空（如有）→ 开多
-3. 跌破下轨且无空仓：平多（如有）→ 开空
-4. 持多头且价格跌破N2期下轨：平多止损/止盈
-5. 持空头且价格突破N2期上轨：平空止损/止盈
+2. 突破上轨：平空（如有）→ 开多（通过 set_target_volume(VOLUME) 实现）
+3. 跌破下轨：平多（如有）→ 开空（通过 set_target_volume(-VOLUME) 实现）
+4. 持多头且价格跌破N2期下轨：平多止损/止盈（set_target_volume(0)）
+5. 持空头且价格突破N2期上轨：平空止损/止盈（set_target_volume(0)）
+
+【为何使用 TargetPosTask】
+本策略使用 TargetPosTask 替代直接调用 insert_order，原因如下：
+- TargetPosTask 内部自动处理追单、撤单、部分成交等复杂场景，无需手动管理订单状态
+- 只需指定目标持仓量（正数=多仓，负数=空仓，0=平仓），框架自动计算需要的净操作
+- 避免了先平后开的繁琐逻辑，代码更简洁、更健壮
+- 在网络延迟或行情快速变化时，TargetPosTask 能正确处理未成交订单的撤单重发
 
 【适用品种和周期】
 品种：趋势性强的品种，如原油（SC）、铜（CU）、螺纹钢（RB）、股指（IF）
@@ -69,7 +76,7 @@ Middle_N = (Upper_N + Lower_N) / 2
   VOLUME      : 每次开仓手数，默认1手
 """
 
-from tqsdk import TqApi, TqAuth, TqSim
+from tqsdk import TqApi, TqAuth, TqSim, TargetPosTask
 
 # ===================== 策略参数 =====================
 SYMBOL = "SHFE.rb2501"     # 交易合约：螺纹钢主力
@@ -88,7 +95,9 @@ def main():
 
     # 需要足够多的K线来计算入场通道
     klines = api.get_kline_serial(SYMBOL, KLINE_DUR, data_length=N_ENTER + 5)
-    position = api.get_position(SYMBOL)
+
+    # 初始化 TargetPosTask，自动管理持仓目标（自动处理追单/撤单/部分成交）
+    target_pos = TargetPosTask(api, SYMBOL)
 
     print(f"[唐奇安通道] 启动 | {SYMBOL} | 入场N={N_ENTER} | 出场N={N_EXIT}")
 
@@ -108,38 +117,31 @@ def main():
         # 最新完成K线的收盘价（-2是最近完成的那根）
         last_close = klines.close.iloc[-2]
 
-        net_pos = position.volume_long - position.volume_short
-
         print(
             f"收盘: {last_close:.2f} | "
             f"入场通道: [{low_enter:.2f}, {high_enter:.2f}] | "
-            f"出场通道: [{low_exit:.2f}, {high_exit:.2f}] | "
-            f"净持仓: {net_pos}"
+            f"出场通道: [{low_exit:.2f}, {high_exit:.2f}]"
         )
 
         # ---- 入场：突破上轨做多 ----
-        if last_close > high_enter and net_pos <= 0:
+        if last_close > high_enter:
             print(f">>> 突破入场上轨 {high_enter:.2f}，做多")
-            if net_pos < 0:
-                api.insert_order(SYMBOL, "BUY", "CLOSE", abs(net_pos))
-            api.insert_order(SYMBOL, "BUY", "OPEN", VOLUME)
+            target_pos.set_target_volume(VOLUME)
 
         # ---- 入场：跌破下轨做空 ----
-        elif last_close < low_enter and net_pos >= 0:
+        elif last_close < low_enter:
             print(f">>> 跌破入场下轨 {low_enter:.2f}，做空")
-            if net_pos > 0:
-                api.insert_order(SYMBOL, "SELL", "CLOSE", net_pos)
-            api.insert_order(SYMBOL, "SELL", "OPEN", VOLUME)
+            target_pos.set_target_volume(-VOLUME)
 
         # ---- 出场：多头跌破出场下轨，平多 ----
-        elif net_pos > 0 and last_close < low_exit:
+        elif last_close < low_exit:
             print(f">>> 多头跌破出场下轨 {low_exit:.2f}，平多")
-            api.insert_order(SYMBOL, "SELL", "CLOSE", net_pos)
+            target_pos.set_target_volume(0)
 
         # ---- 出场：空头突破出场上轨，平空 ----
-        elif net_pos < 0 and last_close > high_exit:
+        elif last_close > high_exit:
             print(f">>> 空头突破出场上轨 {high_exit:.2f}，平空")
-            api.insert_order(SYMBOL, "BUY", "CLOSE", abs(net_pos))
+            target_pos.set_target_volume(0)
 
     api.close()
 
