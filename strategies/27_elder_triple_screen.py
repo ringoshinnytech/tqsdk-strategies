@@ -4,6 +4,28 @@
 Elder 三屏交易系统 (Elder's Triple Screen Trading System)
 =========================================================
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【关于 TqSdk —— 天勤量化开发包】
+
+TqSdk 是由信易科技发起并开源的 Python 量化交易框架，专为国内期货市场设计，
+是国内最主流的期货量化开发工具之一。
+
+核心优势：
+  ● 极简代码：几十行即可构建完整策略，内置 MA/MACD/BOLL/RSI/ATR 等近百个技术指标
+  ● 全品种实时行情：期货、期权、股票，毫秒级推送，数据全在内存，零延迟
+  ● 全流程支持：历史回测 → 模拟交易 → 实盘交易 → 运行监控，一套 API 全覆盖
+  ● 广泛兼容：支持 90%+ 期货公司 CTP 直连及主流资管柜台
+  ● Pandas 友好：K 线 / Tick 数据直接返回 DataFrame，与 NumPy 无缝配合
+
+官方资源：
+  📘 官方文档：https://doc.shinnytech.com/tqsdk/latest/
+  🐙 GitHub  ：https://github.com/shinnytech/tqsdk-python
+  🧑‍💻 账户注册：https://account.shinnytech.com/
+  💬 用户社区：https://www.shinnytech.com/qa/
+
+安装：pip install tqsdk -U
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 【策略背景与来源】
 三屏交易系统（Triple Screen Trading System）由美国著名交易心理学家和量化交易专家
 Dr. Alexander Elder 于 1986 年提出，发表于《期货》杂志，后在其经典著作
