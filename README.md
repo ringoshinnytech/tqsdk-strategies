@@ -101,7 +101,7 @@ api = TqApi(
 
 ---
 
-## 📁 策略列表（27个）
+## 📁 策略列表（29个）
 
 > 每个策略文件包含：**500字以上策略思路讲解 + 完整可运行代码 + 详细中文注释**
 
@@ -160,12 +160,19 @@ api = TqApi(
 | 策略文件 | 策略名称 | 核心逻辑 |
 |---------|---------|---------|
 | [26_chaikin_money_flow.py](strategies/26_chaikin_money_flow.py) | 蔡金资金流量策略 | CMF 衡量买卖资金净流向，上穿阈值做多，下穿阈值做空 |
+| [28_obv_trend.py](strategies/28_obv_trend.py) | OBV 能量潮趋势策略 | OBV 短/长均线金叉死叉，量能领先价格判断资金流向 |
 
 ### 多周期综合类
 
 | 策略文件 | 策略名称 | 核心逻辑 |
 |---------|---------|---------|
 | [27_elder_triple_screen.py](strategies/27_elder_triple_screen.py) | Elder 三屏交易系统 | 日线MACD趋势+小时线Stochastic超买超卖+15分钟均线精确入场 |
+
+### 趋势强度过滤类
+
+| 策略文件 | 策略名称 | 核心逻辑 |
+|---------|---------|---------|
+| [29_adx_trend_filter.py](strategies/29_adx_trend_filter.py) | ADX 趋势强度过滤策略 | ADX>25确认趋势强度，+DI/-DI判断方向，ATR追踪止损动态护盈 |
 
 ---
 
