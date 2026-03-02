@@ -101,7 +101,7 @@ api = TqApi(
 
 ---
 
-## 📁 策略列表（29个）
+## 📁 策略列表（31个）
 
 > 每个策略文件包含：**500字以上策略思路讲解 + 完整可运行代码 + 详细中文注释**
 
@@ -173,6 +173,13 @@ api = TqApi(
 | 策略文件 | 策略名称 | 核心逻辑 |
 |---------|---------|---------|
 | [29_adx_trend_filter.py](strategies/29_adx_trend_filter.py) | ADX 趋势强度过滤策略 | ADX>25确认趋势强度，+DI/-DI判断方向，ATR追踪止损动态护盈 |
+| [30_supertrend.py](strategies/30_supertrend.py) | SuperTrend 超级趋势指标策略 | ATR倍数动态上下轨，趋势翻转时平仓反手，自带追踪止损 |
+
+### 均值回归（日内）类
+
+| 策略文件 | 策略名称 | 核心逻辑 |
+|---------|---------|---------|
+| [31_vwap_mean_reversion.py](strategies/31_vwap_mean_reversion.py) | VWAP 均值回归日内策略 | 日内滚动VWAP+标准差带，价格偏离N倍σ入场，回归至VWAP附近平仓，尾盘强平 |
 
 ---
 
