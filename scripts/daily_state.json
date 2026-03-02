@@ -1,6 +1,6 @@
 {
-  "last_index": 29,
-  "last_upload_date": "2026-03-01",
+  "last_index": 31,
+  "last_upload_date": "2026-03-02",
   "uploaded": [
     "strategies/01_double_ma.py",
     "strategies/02_boll_breakout.py",
@@ -30,6 +30,8 @@
     "strategies/26_chaikin_money_flow.py",
     "strategies/27_elder_triple_screen.py",
     "strategies/28_obv_trend.py",
-    "strategies/29_adx_trend_filter.py"
+    "strategies/29_adx_trend_filter.py",
+    "strategies/30_supertrend.py",
+    "strategies/31_vwap_mean_reversion.py"
   ]
 }
