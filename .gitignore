@@ -24,3 +24,6 @@ env/
 # 账户配置（不要提交真实账户信息）
 config_local.py
 secrets.py
+
+# 脚本目录
+scripts/
