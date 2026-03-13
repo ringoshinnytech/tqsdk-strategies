@@ -122,7 +122,7 @@ api = TqApi(
 
 ---
 
-## 📁 策略列表（47个）
+## 📁 策略列表（49个）
 
 > 每个策略文件包含：**500字以上策略思路讲解 + 完整可运行代码 + 详细中文注释**
 
@@ -208,6 +208,8 @@ api = TqApi(
 |---------|---------|---------|
 | [46_multi_factor.py](strategies/46_multi_factor.py) | 多因子量化选股策略 | 动量+趋势+波动率+成交量四因子加权评分，选强势品种交易 |
 | [47_cross_market_hedge.py](strategies/47_cross_market_hedge.py) | 跨市场对冲策略 | 基于Z-Score的跨品种价差套利，做多低估做空高估 |
+| [48_sector_rotation_multi_factor.py](strategies/48_sector_rotation_multi_factor.py) | 截面多因子行业轮动策略 | 动量+波动率+成交量+趋势四因子截面打分，跨板块多空轮动 |
+| [49_mean_variance_portfolio.py](strategies/49_mean_variance_portfolio.py) | 均值方差最优组合策略 | Markowitz最大夏普比率组合，波动率目标调仓，多品种联合配置 |
 
 ---
 
