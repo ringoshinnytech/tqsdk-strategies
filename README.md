@@ -122,7 +122,7 @@ api = TqApi(
 
 ---
 
-## 📁 策略列表（49个）
+## 📁 策略列表（51个）
 
 > 每个策略文件包含：**500字以上策略思路讲解 + 完整可运行代码 + 详细中文注释**
 
@@ -210,6 +210,8 @@ api = TqApi(
 | [47_cross_market_hedge.py](strategies/47_cross_market_hedge.py) | 跨市场对冲策略 | 基于Z-Score的跨品种价差套利，做多低估做空高估 |
 | [48_sector_rotation_multi_factor.py](strategies/48_sector_rotation_multi_factor.py) | 截面多因子行业轮动策略 | 动量+波动率+成交量+趋势四因子截面打分，跨板块多空轮动 |
 | [49_mean_variance_portfolio.py](strategies/49_mean_variance_portfolio.py) | 均值方差最优组合策略 | Markowitz最大夏普比率组合，波动率目标调仓，多品种联合配置 |
+| [50_volatility_skew.py](strategies/50_volatility_skew.py) | 截面波动率偏度交易策略 | 20日收益率分布偏度+波动率水平+动量+成交量四因子截面打分，筛选低风险高动量品种 |
+| [51_term_structure.py](strategies/51_term_structure.py) | 期限结构基差回归策略 | 基于近远月价比的对数斜率，当斜率偏离历史均值1.5倍标准差时入场，做价差均值回归 |
 
 ---
 
