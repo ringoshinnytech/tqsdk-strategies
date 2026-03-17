@@ -212,6 +212,8 @@ api = TqApi(
 | [49_mean_variance_portfolio.py](strategies/49_mean_variance_portfolio.py) | 均值方差最优组合策略 | Markowitz最大夏普比率组合，波动率目标调仓，多品种联合配置 |
 | [50_volatility_skew.py](strategies/50_volatility_skew.py) | 截面波动率偏度交易策略 | 20日收益率分布偏度+波动率水平+动量+成交量四因子截面打分，筛选低风险高动量品种 |
 | [51_term_structure.py](strategies/51_term_structure.py) | 期限结构基差回归策略 | 基于近远月价比的对数斜率，当斜率偏离历史均值1.5倍标准差时入场，做价差均值回归 |
+| [52_multi_factor_ai_prediction.py](strategies/52_multi_factor_ai_prediction.py) | 多因子AI预测策略 | 融合动量/趋势/波动率/成交量因子，基于预测信号进行品种轮动和仓位调整 |
+| [53_market_maker_hedge.py](strategies/53_market_maker_hedge.py) | 跨品种做市商对冲策略 | 模拟做市商在多品种上挂单，使用跨品种对冲消除方向性风险，赚取买卖价差 |
 
 ---
 
