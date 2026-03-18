@@ -122,7 +122,14 @@ api = TqApi(
 
 ---
 
-## 📁 策略列表（51个）
+### 截面多空类
+
+| 策略文件 | 策略名称 | 核心逻辑 |
+|---------|---------|---------|
+| [27_multi_factor_ranking.py](strategies/27_multi_factor_ranking.py) | 多因子截面排名策略 | 动量+波动率+趋势三因子截面排名，做多综合得分最高、做空得分最低 |
+| [28_volatility_breakout.py](strategies/28_volatility_breakout.py) | 波动率动量突破策略 | ATR 突破 + ADX 趋势确认，动态止损跟踪趋势 |
+
+## 📁 策略列表（53个）
 
 > 每个策略文件包含：**500字以上策略思路讲解 + 完整可运行代码 + 详细中文注释**
 
