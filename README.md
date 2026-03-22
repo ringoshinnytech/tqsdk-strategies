@@ -129,7 +129,7 @@ api = TqApi(
 | [27_multi_factor_ranking.py](strategies/27_multi_factor_ranking.py) | 多因子截面排名策略 | 动量+波动率+趋势三因子截面排名，做多综合得分最高、做空得分最低 |
 | [28_volatility_breakout.py](strategies/28_volatility_breakout.py) | 波动率动量突破策略 | ATR 突破 + ADX 趋势确认，动态止损跟踪趋势 |
 
-## 📁 策略列表（53个）
+## 📁 策略列表（55个）
 
 > 每个策略文件包含：**500字以上策略思路讲解 + 完整可运行代码 + 详细中文注释**
 
@@ -221,6 +221,8 @@ api = TqApi(
 | [51_term_structure.py](strategies/51_term_structure.py) | 期限结构基差回归策略 | 基于近远月价比的对数斜率，当斜率偏离历史均值1.5倍标准差时入场，做价差均值回归 |
 | [52_multi_factor_ai_prediction.py](strategies/52_multi_factor_ai_prediction.py) | 多因子AI预测策略 | 融合动量/趋势/波动率/成交量因子，基于预测信号进行品种轮动和仓位调整 |
 | [53_market_maker_hedge.py](strategies/53_market_maker_hedge.py) | 跨品种做市商对冲策略 | 模拟做市商在多品种上挂单，使用跨品种对冲消除方向性风险，赚取买卖价差 |
+| [54_multi_asset_long_short_hedge.py](strategies/54_multi_asset_long_short_hedge.py) | 多标的截面多空对冲策略 | 动量因子截面排名+趋势过滤+流动性过滤，构建等权多空对冲组合剥离系统性风险 |
+| [55_momentum_value_factor_composite.py](strategies/55_momentum_value_factor_composite.py) | 时序动量与截面价值因子复合策略 | 20日动量因子与期限结构价值因子加权组合，截面多空+ADX趋势确认 |
 
 ---
 
