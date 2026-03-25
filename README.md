@@ -129,7 +129,7 @@ api = TqApi(
 | [27_multi_factor_ranking.py](strategies/27_multi_factor_ranking.py) | 多因子截面排名策略 | 动量+波动率+趋势三因子截面排名，做多综合得分最高、做空得分最低 |
 | [28_volatility_breakout.py](strategies/28_volatility_breakout.py) | 波动率动量突破策略 | ATR 突破 + ADX 趋势确认，动态止损跟踪趋势 |
 
-## 📁 策略列表（59个）
+## 📁 策略列表（61个）
 
 > 每个策略文件包含：**500字以上策略思路讲解 + 完整可运行代码 + 详细中文注释**
 
@@ -227,6 +227,8 @@ api = TqApi(
 | [57_adaptive_volatility_breakout.py](strategies/57_adaptive_volatility_breakout.py) | 自适应波动率突破策略（基于波动锥） | 三档波动率锥动态调整止损止盈，波动率越高仓位越低，趋势自适应 |
 | [58_money_flow_rotation.py](strategies/58_money_flow_rotation.py) | 截面资金流向多空轮动策略 | CMF资金流向+OI持仓量背离+VWAP偏离三重因子截面排名，多空轮动捕捉主力资金动向 |
 | [59_vol_momentum_composite.py](strategies/59_vol_momentum_composite.py) | 时序波动率与截面动量复合趋势策略 | 时序布林带+ADX+RSI与截面收益率双重确认，ADX自适应仓位过滤噪音趋势 |
+| [60_cross_section_ml_ranking.py](strategies/60_cross_section_ml_ranking.py) | 截面多因子机器学习排名策略 | 截面排名、多因子打分、机器学习因子 | 商品期货多品种 | 日线 |
+| [61_statistical_arbitrage.py](strategies/61_statistical_arbitrage.py) | 统计套利跨品种对冲策略 | 协整检验、Z-score均值回归、跨品种对冲 | 商品期货配对 | 日线 |
 
 ---
 
