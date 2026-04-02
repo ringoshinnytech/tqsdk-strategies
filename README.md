@@ -103,24 +103,12 @@ api = TqApi(
 
 ## 🌐 TqSdk 策略生态矩阵
 
-本仓库是 **TqSdk 策略生态** 的综合趋势策略分支，与以下专项仓库共同构成完整的期货量化策略体系，每日持续更新：
+本仓库是 **TqSdk 策略生态** 的综合趋势策略分支，以下保留目前仍可访问的相关仓库：
 
 | 仓库 | 作者 | 专项方向 | 链接 |
 |------|------|---------|------|
 | 📈 tqsdk-strategies | ringoshinnytech | **综合趋势策略**（MA/MACD/SuperTrend/ATR等） | [本仓库](https://github.com/ringoshinnytech/tqsdk-strategies) |
-| ⚖️ tqsdk-arbitrage | kubangr | **套利策略**（跨期套利、跨品种套利、统计套利、期现套利） | [查看](https://github.com/kubangr/tqsdk-arbitrage) |
 | 🛡️ tqsdk-options | setherffw | **期权策略**（Delta对冲、Gamma Scalping、波动率套利、期权组合） | [查看](https://github.com/setherffw/tqsdk-options) |
-| 🏭 tqsdk-commodities | attiathcoope4jaf | **商品期货专项**（铜/螺纹/豆粕/原油等各品种定制策略） | [查看](https://github.com/attiathcoope4jaf/tqsdk-commodities) |
-| 💹 tqsdk-financials | leancu | **金融期货专项**（IF/IC/IM/IH股指期货、国债期货） | [查看](https://github.com/leancu/tqsdk-financials) |
-| ⚡ tqsdk-intraday | yscoku | **高频日内策略**（Tick级别、开盘突破ORB、隔夜缺口、VWAP日内） | [查看](https://github.com/yscoku/tqsdk-intraday) |
-| 🔒 tqsdk-riskmanager | logueidi | **风控与资金管理**（Kelly仓位、ATR动态仓位、最大回撤控制） | [查看](https://github.com/logueidi/tqsdk-riskmanager) |
-| 🔬 tqsdk-research | sjyachie | **量化研究工具**（回测框架、指标库、绩效评估、数据清洗） | [查看](https://github.com/sjyachie/tqsdk-research) |
-| 🧩 tqsdk-portfolio | helgejaystea | **多品种组合/配对交易**（协整配对、均值方差优化、风险平价） | [查看](https://github.com/helgejaystea/tqsdk-portfolio) |
-| 🌱 tqsdk-seasonal | profedge6 | **季节性/事件驱动**（农产品季节规律、节假日效应、USDA事件） | [查看](https://github.com/profedge6/tqsdk-seasonal) |
-
-> 💡 **10个仓库均每日自动更新，覆盖期货量化交易全场景，欢迎逐一 Star ⭐**
-
----
 
 ### 截面多空类
 
