@@ -69,7 +69,7 @@ def calc_rsi(close, period):
 
 
 def main():
-    api = TqApi(account=TqSim(), auth=TqAuth("账号", "密码"))
+    api = TqApi(account=TqSim(), auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"))
     print(f"[布林带均值回归] 启动，品种={SYMBOL}")
 
     klines = api.get_kline_serial(SYMBOL, KLINE_DURATION, DATA_LENGTH)

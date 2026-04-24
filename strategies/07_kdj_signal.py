@@ -208,6 +208,9 @@ try:
             death_cross = (k_prev > d_prev) and (k_cur < d_cur)
 
             # ---- 查询当前持仓 ----
+            position = api.get_position(SYMBOL)
+            volume_long = position.volume_long
+            volume_short = position.volume_short
 
             # ---- 执行交易逻辑 ----
 

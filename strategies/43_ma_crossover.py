@@ -33,7 +33,7 @@ TAKE_PROFIT = 0.06              # 6%止盈
 
 # ============ 主策略 ============
 def main():
-    api = TqApi(auth=TqAuth("账号", "密码"))
+    api = TqApi(auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"))
     
     print("启动：均线金叉死叉趋势策略")
     

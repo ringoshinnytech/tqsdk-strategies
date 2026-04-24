@@ -184,13 +184,13 @@ class MultiFactorAIPredictionStrategy:
         # 平仓信号弱的持仓
         current_signals = {s['symbol']: s['direction'] for s in signals[:self.MAX_POSITIONS]}
         
-        for pos in positions:
-            if pos.symbol not in current_signals:
+        for symbol, pos in positions.items():
+            if symbol not in current_signals:
                 # 平仓
                 if pos.pos_long > 0:
-                    self.api.insert_order(symbol=pos.symbol, direction="short", volume=pos.pos_long)
+                    self.api.insert_order(symbol=symbol, direction="SELL", offset="CLOSE", volume=pos.pos_long)
                 elif pos.pos_short > 0:
-                    self.api.insert_order(symbol=pos.symbol, direction="long", volume=pos.pos_short)
+                    self.api.insert_order(symbol=symbol, direction="BUY", offset="CLOSE", volume=pos.pos_short)
         
         # 开仓信号强的
         for signal in signals[:self.MAX_POSITIONS]:
@@ -204,10 +204,17 @@ class MultiFactorAIPredictionStrategy:
             target_pos = direction * 1  # 每手
             
             if current_pos != target_pos:
+                if current_pos < 0 and target_pos >= 0:
+                    self.api.insert_order(symbol=symbol, direction="BUY", offset="CLOSE", volume=abs(current_pos))
+                    current_pos = 0
+                elif current_pos > 0 and target_pos <= 0:
+                    self.api.insert_order(symbol=symbol, direction="SELL", offset="CLOSE", volume=current_pos)
+                    current_pos = 0
+
                 if target_pos > current_pos:
-                    self.api.insert_order(symbol=symbol, direction="long", volume=target_pos - current_pos)
-                else:
-                    self.api.insert_order(symbol=symbol, direction="short", volume=current_pos - target_pos)
+                    self.api.insert_order(symbol=symbol, direction="BUY", offset="OPEN", volume=target_pos - current_pos)
+                elif target_pos < current_pos:
+                    self.api.insert_order(symbol=symbol, direction="SELL", offset="OPEN", volume=current_pos - target_pos)
         
         self.last_rebalance = datetime.now()
     
@@ -215,22 +222,22 @@ class MultiFactorAIPredictionStrategy:
         """检查止损"""
         positions = self.api.get_position()
         
-        for pos in positions:
+        for symbol, pos in positions.items():
             if pos.pos_long > 0:
                 # 检查价格是否跌破均线
-                kline = self.get_klines(pos.symbol)
+                kline = self.get_klines(symbol)
                 if len(kline) > 20:
                     ma20 = np.mean(kline['close'].values[-20:])
                     if kline['close'].values[-1] < ma20 * 0.98:
                         # 止损
-                        self.api.insert_order(symbol=pos.symbol, direction="short", volume=pos.pos_long)
+                        self.api.insert_order(symbol=symbol, direction="SELL", offset="CLOSE", volume=pos.pos_long)
             elif pos.pos_short > 0:
-                kline = self.get_klines(pos.symbol)
+                kline = self.get_klines(symbol)
                 if len(kline) > 20:
                     ma20 = np.mean(kline['close'].values[-20:])
                     if kline['close'].values[-1] > ma20 * 1.02:
                         # 止损
-                        self.api.insert_order(symbol=pos.symbol, direction="long", volume=pos.pos_short)
+                        self.api.insert_order(symbol=symbol, direction="BUY", offset="CLOSE", volume=pos.pos_short)
     
     def run(self):
         """运行策略"""
@@ -253,8 +260,7 @@ class MultiFactorAIPredictionStrategy:
 
 def main():
     """主函数"""
-    api = TqSim()
-    # api = TqApi(auth=TqAuth("快期账户", "账户密码"))
+    api = TqApi(account=TqSim(), auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"))
     
     strategy = MultiFactorAIPredictionStrategy(api)
     

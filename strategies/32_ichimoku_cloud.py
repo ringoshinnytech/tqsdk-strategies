@@ -317,7 +317,7 @@ def main():
     # ─────────────────────────────────────────
     api = TqApi(
         account=TqSim(init_balance=200000),
-        auth=TqAuth("your_username", "your_password"),  # 请替换为实际账号
+        auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"),  # 请替换为实际账号
     )
 
     klines = api.get_kline_serial(SYMBOL, KLINE_PERIOD, data_length=200)

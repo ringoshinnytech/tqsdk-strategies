@@ -8,7 +8,7 @@
 
 import numpy as np
 import pandas as pd
-from tqsdk import TqApi, TqAuth, TargetPosTask
+from tqsdk import TqApi, TqAuth, TqSim, TargetPosTask
 
 # ========== 策略参数 ==========
 # 监控品种列表（根据实际行情可调整合约代码）
@@ -141,8 +141,8 @@ def calc_all_factors(klines_dict, quotes_dict):
 
 # ========== 策略主体 ==========
 def main():
-    api = TqApi(auth=TqAuth("auto", "auto"))
-    target_pos = TargetPosTask(api)
+    api = TqApi(account=TqSim(), auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"))
+    target_pos = {sym: TargetPosTask(api, sym) for sym in ASSETS}
 
     print(f"[策略62] 宏观因子轮转截面策略启动 | 品种数: {len(ASSETS)}")
     print(f"         因子权重: {FACTOR_WEIGHTS}")
@@ -216,7 +216,7 @@ def main():
             try:
                 current_lot = current_positions.get(sym, 0)
                 if lot != current_lot:
-                    target_pos.set_target_pos(sym, lot)
+                    target_pos[sym].set_target_volume(lot)
                     current_positions[sym] = lot
                     if lot > 0:
                         print(f"         做多 {sym}: {lot}手")

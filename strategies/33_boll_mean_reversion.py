@@ -76,7 +76,7 @@ TqSdk 是由信易科技发起并开源的 Python 量化交易框架，专为国
   4. 回测结果不代表未来表现，实盘前请充分测试
 """
 
-from tqsdk import TqApi, TqAuth, TqBacktest
+from tqsdk import TqApi, TqAuth, TqSim
 from tqsdk.ta import BOLL
 import pandas as pd
 
@@ -91,7 +91,7 @@ CLOSE_MINUTE = 50            # 强制平仓分钟
 
 
 def main():
-    api = TqApi(auth=TqAuth("账号", "密码"))
+    api = TqApi(account=TqSim(), auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"))
     
     print(f"策略启动: BOLL 布林带均值回归策略")
     print(f"交易品种: {SYMBOL}")
@@ -103,7 +103,9 @@ def main():
     
     while True:
         # 等待K线更新
-        api.wait_update(klines)
+        api.wait_update()
+        if not api.is_changing(klines):
+            continue
         
         if len(klines) < BOLL_PERIOD + 5:
             continue
@@ -124,15 +126,18 @@ def main():
         boll_low = df['boll_low'].iloc[-1]
         
         # 获取当前时间
-        current_time = api.get_current_datetime()
+        current_time = pd.to_datetime(df['datetime'].iloc[-1], unit="ns")
         hour = current_time.hour
         minute = current_time.minute
         
         # 尾盘强制平仓
-        if hour >= CLOSE_HOUR and minute >= CLOSE_MINUTE:
+        if hour > CLOSE_HOUR or (hour == CLOSE_HOUR and minute >= CLOSE_MINUTE):
             if position != 0:
                 print(f"[{current_time}] 尾盘平仓")
-                api.close_position()
+                if position > 0:
+                    api.insert_order(symbol=SYMBOL, direction="SELL", offset="CLOSE", volume=LOT_SIZE)
+                else:
+                    api.insert_order(symbol=SYMBOL, direction="BUY", offset="CLOSE", volume=LOT_SIZE)
                 position = 0
             continue
         
@@ -141,24 +146,24 @@ def main():
             # 价格触及下轨，做多
             if current_price <= boll_low:
                 print(f"[{current_time}] 价格触及下轨，做多 | 价格: {current_price:.2f} < 布林下轨: {boll_low:.2f}")
-                api.insert_order(symbol=SYMBOL, direction="long", offset="open", volume=LOT_SIZE)
+                api.insert_order(symbol=SYMBOL, direction="BUY", offset="OPEN", volume=LOT_SIZE)
                 position = 1
             
             # 价格触及上轨，做空
             elif current_price >= boll_upp:
                 print(f"[{current_time}] 价格触及上轨，做空 | 价格: {current_price:.2f} > 布林上轨: {boll_upp:.2f}")
-                api.insert_order(symbol=SYMBOL, direction="short", offset="open", volume=LOT_SIZE)
+                api.insert_order(symbol=SYMBOL, direction="SELL", offset="OPEN", volume=LOT_SIZE)
                 position = -1
         
         # 持仓状态下价格回归中轨，平仓
         elif position == 1 and current_price >= boll_mid:
             print(f"[{current_time}] 价格回归中轨，平多仓 | 价格: {current_price:.2f} >= 中轨: {boll_mid:.2f}")
-            api.insert_order(symbol=SYMBOL, direction="short", offset="close", volume=LOT_SIZE)
+            api.insert_order(symbol=SYMBOL, direction="SELL", offset="CLOSE", volume=LOT_SIZE)
             position = 0
             
         elif position == -1 and current_price <= boll_mid:
             print(f"[{current_time}] 价格回归中轨，平空仓 | 价格: {current_price:.2f} <= 中轨: {boll_mid:.2f}")
-            api.insert_order(symbol=SYMBOL, direction="long", offset="close", volume=LOT_SIZE)
+            api.insert_order(symbol=SYMBOL, direction="BUY", offset="CLOSE", volume=LOT_SIZE)
             position = 0
     
     api.close()

@@ -131,13 +131,13 @@ class TermStructureStrategy:
 
         # 做多价差 = 买近月卖远月
         if direction == "long":
-            self.api.open_long(near, 1)
-            self.api.open_short(far, 1)
+            self.api.insert_order(near, direction="BUY", offset="OPEN", volume=1)
+            self.api.insert_order(far, direction="SELL", offset="OPEN", volume=1)
             print(f"[开仓] {base} 价差多头: 买{near} 卖{far}")
         # 做空价差 = 卖近月买远月
         elif direction == "short":
-            self.api.open_short(near, 1)
-            self.api.open_long(far, 1)
+            self.api.insert_order(near, direction="SELL", offset="OPEN", volume=1)
+            self.api.insert_order(far, direction="BUY", offset="OPEN", volume=1)
             print(f"[开仓] {base} 价差空头: 卖{near} 买{far}")
 
         self.positions[pos_key] = True
@@ -152,13 +152,13 @@ class TermStructureStrategy:
 
         # 平多价差
         if direction == "long":
-            self.api.close_long(near, 1)
-            self.api.close_short(far, 1)
+            self.api.insert_order(near, direction="SELL", offset="CLOSE", volume=1)
+            self.api.insert_order(far, direction="BUY", offset="CLOSE", volume=1)
             print(f"[平仓] {base} 价差多头平仓")
         # 平空价差
         elif direction == "short":
-            self.api.close_short(near, 1)
-            self.api.close_long(far, 1)
+            self.api.insert_order(near, direction="BUY", offset="CLOSE", volume=1)
+            self.api.insert_order(far, direction="SELL", offset="CLOSE", volume=1)
             print(f"[平仓] {base} 价差空头平仓")
 
         pos_key = (base, direction)
@@ -170,7 +170,11 @@ class TermStructureStrategy:
         signals = {}
         for base in self.CONTRACTS.keys():
             signal = self._get_signal(base)
-            if signal != "none":
+            if signal == "close":
+                for direction in ("long", "short"):
+                    if (base, direction) in self.positions:
+                        self._close_spread(base, direction)
+            elif signal in ("long_spread", "short_spread"):
                 signals[base] = signal
 
         # 排序选择信号最强的
@@ -194,12 +198,10 @@ class TermStructureStrategy:
 
         # 开仓新信号
         for base, signal in signals.items():
-            pos_key = (base, signal.replace("short", "short").replace("long", "long"))
+            direction = "long" if signal == "long_spread" else "short"
+            pos_key = (base, direction)
             if pos_key not in self.positions:
-                if signal == "long_spread":
-                    self._open_spread(base, "long")
-                elif signal == "short_spread":
-                    self._open_spread(base, "short")
+                self._open_spread(base, direction)
 
     def _get_zscore(self, base: str) -> float:
         """获取当前z分数"""
@@ -234,6 +236,6 @@ class TermStructureStrategy:
 
 
 if __name__ == "__main__":
-    api = TqSim()
+    api = TqApi(account=TqSim(), auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"))
     strategy = TermStructureStrategy(api)
     strategy.run()

@@ -68,7 +68,7 @@ def calculate_ichimoku(kline, tenkan_period, kijun_period, senkou_period):
     return tenkan, kijun, senkou_a, senkou_b
 
 def main():
-    api = TqApi(auth=TqAuth("13556817485", "asd159753"))
+    api = TqApi(account=TqSim(), auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"))
     
     kline = api.get_kline_serial(SYMBOL, KLINE_DUR)
     target_pos = TargetPosTask(api, SYMBOL)

@@ -59,7 +59,7 @@ def calc_rsi(closes, period=14):
 
 # ============ 主策略 ============
 def main():
-    api = TqApi(auth=TqAuth("账号", "密码"))
+    api = TqApi(auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"))
     
     print("启动：布林带均值回归策略")
     

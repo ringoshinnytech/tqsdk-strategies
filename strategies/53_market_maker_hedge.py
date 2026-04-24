@@ -161,8 +161,8 @@ class MarketMakerHedgeStrategy:
             # 挂新单
             order_id = self.api.insert_order(
                 symbol=symbol,
-                direction="buy",
-                offset="open",
+                direction="BUY",
+                offset="OPEN",
                 volume=self.MIN_QUOTE_SIZE,
                 limit_price=bid_price
             )
@@ -173,8 +173,8 @@ class MarketMakerHedgeStrategy:
             self.cancel_pending_orders(symbol, 'sell')
             order_id = self.api.insert_order(
                 symbol=symbol,
-                direction="sell",
-                offset="open",
+                direction="SELL",
+                offset="OPEN",
                 volume=self.MIN_QUOTE_SIZE,
                 limit_price=ask_price
             )
@@ -225,16 +225,16 @@ class MarketMakerHedgeStrategy:
                 # 多头需要做空对冲
                 self.api.insert_order(
                     symbol=hedge_source[0],
-                    direction="sell",
-                    offset="open",
+                    direction="SELL",
+                    offset="OPEN",
                     volume=hedge_volume
                 )
             else:
                 # 空头需要做多对冲
                 self.api.insert_order(
                     symbol=hedge_source[0],
-                    direction="buy",
-                    offset="open",
+                    direction="BUY",
+                    offset="OPEN",
                     volume=hedge_volume
                 )
             
@@ -247,8 +247,8 @@ class MarketMakerHedgeStrategy:
             positions = self.api.get_position()
             self.positions = {}
             
-            for pos in positions:
-                self.positions[pos.symbol] = {
+            for symbol, pos in positions.items():
+                self.positions[symbol] = {
                     'long': pos.pos_long,
                     'short': pos.pos_short
                 }
@@ -325,8 +325,7 @@ class MarketMakerHedgeStrategy:
 
 def main():
     """主函数"""
-    api = TqSim()
-    # api = TqApi(auth=TqAuth("快期账户", "账户密码"))
+    api = TqApi(account=TqSim(), auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"))
     
     strategy = MarketMakerHedgeStrategy(api)
     

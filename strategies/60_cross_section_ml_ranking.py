@@ -8,7 +8,7 @@
 
 import numpy as np
 import pandas as pd
-from tqsdk import TqApi, TqAuth, TargetPosTask
+from tqsdk import TqApi, TqAuth, TqSim, TargetPosTask
 from tqsdk.ta import MA, EMA, VOL
 import random
 
@@ -93,8 +93,8 @@ def rank_factors(factor_dict):
 
 # ========== 策略主体 ==========
 def main():
-    api = TqApi(auth=TqAuth("auto", "auto"))
-    target_pos = TargetPosTask(api)
+    api = TqApi(account=TqSim(), auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"))
+    target_pos = {sym: TargetPosTask(api, sym) for sym in SYMBOLS}
 
     print(f"[策略60] 截面多因子机器学习排名策略启动 | 品种数: {len(SYMBOLS)}")
 
@@ -162,12 +162,12 @@ def main():
             target_positions[sym] = lots
 
             # 做多动量最强的品种
-            target_pos.set_target_pos(sym, lots)
+            target_pos[sym].set_target_volume(lots)
 
         # 平掉不在 top 的仓位
         for sym in SYMBOLS:
             if sym not in top_symbols:
-                target_pos.set_target_pos(sym, 0)
+                target_pos[sym].set_target_volume(0)
 
     api.close()
 

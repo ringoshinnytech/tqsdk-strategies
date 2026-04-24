@@ -157,6 +157,9 @@ try:
             )
 
             # ---- 查询持仓状态 ----
+            position = api.get_position(SYMBOL)
+            volume_long = position.volume_long
+            volume_short = position.volume_short
 
             # ---- 平仓逻辑（优先执行）----
 

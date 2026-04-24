@@ -96,7 +96,7 @@ def rank_to_score(series):
 
 
 def main():
-    api = TqApi(auth=TqAuth("13556817485", "asd159753"))
+    api = TqApi(account=TqSim(), auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"))
 
     print("=" * 60)
     print("策略55：时序动量+截面价值因子复合策略")

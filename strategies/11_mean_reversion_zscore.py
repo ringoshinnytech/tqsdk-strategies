@@ -160,6 +160,9 @@ try:
             )
 
             # ---- 查询持仓 ----
+            position = api.get_position(SYMBOL)
+            volume_long = position.volume_long
+            volume_short = position.volume_short
 
             # ---- 更新持仓计时器 ----
             if volume_long > 0 or volume_short > 0:

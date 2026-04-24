@@ -179,7 +179,7 @@ def main():
     # ─────────────────────────────────────────
     api = TqApi(
         account=TqSim(init_balance=500000),
-        auth=TqAuth("your_username", "your_password"),   # 请替换为实际账号
+        auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"),   # 请替换为实际账号
     )
 
     # 获取 K 线数据（需要 LR_PERIOD + 缓冲，取 200 根）

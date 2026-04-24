@@ -160,6 +160,7 @@ try:
 
     while True:
         api.wait_update()
+        position = api.get_position(SYMBOL)
 
         if api.is_changing(klines):
 
