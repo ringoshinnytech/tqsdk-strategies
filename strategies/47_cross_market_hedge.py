@@ -21,7 +21,6 @@
 """
 
 from tqsdk import TqApi, TqAuth, TqSim
-from tqsdk.ta import ZSCORE, SMA
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
@@ -50,10 +49,18 @@ class CrossMarketHedgeStrategy:
         self.n_lookback = self.params.get('n_lookback', 60)       # 回看周期
         self.n_sma = self.params.get('n_sma', 20)                  # 均线平滑周期
         self.atr_multiplier = self.params.get('atr_multiplier', 2) # ATR止损倍数
+        self.kline_duration = self.params.get('kline_duration', 86400)
+        self.check_interval = timedelta(seconds=self.params.get('check_interval_seconds', 60))
+        self.last_check_time = datetime.min
         
         # 持仓
         self.positions = {}  # {(symbol_a, symbol_b): {'a_long': x, 'b_long': y, 'entry_z': z}}
         
+    @staticmethod
+    def get_hedge_volume(ratio):
+        """将配比转换为可下单的整数手数。"""
+        return max(1, int(round(abs(ratio))))
+
     def get_spread_data(self, symbol_a, symbol_b, ratio, n=100):
         """
         获取两个品种的价差数据
@@ -69,8 +76,12 @@ class CrossMarketHedgeStrategy:
         """
         try:
             # 获取K线数据
-            kline_a = self.api.get_kline_serial(symbol_a, n)
-            kline_b = self.api.get_kline_serial(symbol_b, n)
+            kline_a = self.api.get_kline_serial(
+                symbol_a, self.kline_duration, data_length=n
+            )
+            kline_b = self.api.get_kline_serial(
+                symbol_b, self.kline_duration, data_length=n
+            )
             
             if kline_a is None or kline_b is None:
                 return None
@@ -88,7 +99,7 @@ class CrossMarketHedgeStrategy:
             spread = df_a['close'] - ratio * df_b['close']
             
             # 计算Z-Score
-            mean = SMA(spread, self.n_sma)
+            mean = spread.rolling(self.n_sma).mean()
             std = spread.rolling(self.n_lookback).std()
             zscore = (spread - mean) / std
             
@@ -143,17 +154,19 @@ class CrossMarketHedgeStrategy:
             zscore: 当前Z-Score
         """
         key = (symbol_a, symbol_b)
+        volume_a = 1
+        volume_b = self.get_hedge_volume(ratio)
         
         if direction == 'A_up_B_down':
             # A被高估，B被低估：做空A，做多B
             print(f"[开仓] 做空{symbol_a}, 做多{symbol_b}, Z-Score: {zscore:.2f}")
-            self.api.insert_order(symbol=symbol_a, direction="SELL", offset="OPEN", volume=1)
-            self.api.insert_order(symbol=symbol_b, direction="BUY", offset="OPEN", volume=ratio)
+            self.api.insert_order(symbol=symbol_a, direction="SELL", offset="OPEN", volume=volume_a)
+            self.api.insert_order(symbol=symbol_b, direction="BUY", offset="OPEN", volume=volume_b)
             
             self.positions[key] = {
                 'a_long': 0,
-                'b_long': ratio,
-                'a_short': 1,
+                'b_long': volume_b,
+                'a_short': volume_a,
                 'b_short': 0,
                 'entry_z': zscore,
                 'direction': 'A_up_B_down'
@@ -162,14 +175,14 @@ class CrossMarketHedgeStrategy:
         else:  # A_down_B_up
             # A被低估，B被高估：做多A，做空B
             print(f"[开仓] 做多{symbol_a}, 做空{symbol_b}, Z-Score: {zscore:.2f}")
-            self.api.insert_order(symbol=symbol_a, direction="BUY", offset="OPEN", volume=1)
-            self.api.insert_order(symbol=symbol_b, direction="SELL", offset="OPEN", volume=ratio)
+            self.api.insert_order(symbol=symbol_a, direction="BUY", offset="OPEN", volume=volume_a)
+            self.api.insert_order(symbol=symbol_b, direction="SELL", offset="OPEN", volume=volume_b)
             
             self.positions[key] = {
-                'a_long': 1,
+                'a_long': volume_a,
                 'b_long': 0,
                 'a_short': 0,
-                'b_short': ratio,
+                'b_short': volume_b,
                 'entry_z': zscore,
                 'direction': 'A_down_B_up'
             }
@@ -214,7 +227,12 @@ class CrossMarketHedgeStrategy:
         """检查所有交易对并执行交易"""
         for symbol_a, symbol_b, ratio in self.pairs:
             # 获取价差数据
-            data = self.get_spread_data(symbol_a, symbol_b, ratio)
+            data = self.get_spread_data(
+                symbol_a,
+                symbol_b,
+                ratio,
+                n=max(100, self.n_lookback + self.n_sma + 5),
+            )
             if data is None or len(data) < self.n_lookback:
                 continue
                 
@@ -265,9 +283,9 @@ class CrossMarketHedgeStrategy:
                 # 等待行情更新
                 self.api.wait_update()
                 
-                # 每日开盘后检查交易信号
-                trading_time = self.api.get_trading_time()
-                if self.api.is_changing(trading_time, "date"):
+                now = datetime.now()
+                if now - self.last_check_time >= self.check_interval:
+                    self.last_check_time = now
                     print(f"\n[{datetime.now()}] 检查交易信号...")
                     self.check_and_trade()
                     
@@ -281,7 +299,7 @@ class CrossMarketHedgeStrategy:
 def main():
     """主函数"""
     # 使用模拟账户
-    api = TqApi(auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"))
+    api = TqApi(account=TqSim(), auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"))
     
     # 定义交易对 (品种A, 品种B, 配比)
     # 配比需要根据合约乘数调整
@@ -298,11 +316,12 @@ def main():
         'z_exit': 0.3,           # Z-Score回归到0.3以内时平仓
         'n_lookback': 60,       # 计算Z-Score的回看周期
         'n_sma': 20,            # 均线平滑周期
-        'atr_multiplier': 2     # ATR止损倍数
-    启动策略
-    strategy = Cross }
-    
-    #MarketHedgeStrategy(api, pairs, params)
+        'atr_multiplier': 2,     # ATR止损倍数
+        'kline_duration': 86400,
+        'check_interval_seconds': 60,
+    }
+
+    strategy = CrossMarketHedgeStrategy(api, pairs, params)
     strategy.run()
 
 

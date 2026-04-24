@@ -62,7 +62,7 @@ def main():
 
     使用 TqSim 进行模拟交易，如需实盘请替换为:
         TqAccount("期货公司名称", "资金账号", "交易密码")
-    并在 TqApi 中传入 auth=TqAuth("快期账号", "快期密码")
+    并在 TqApi 中传入 auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD")
     """
 
     # 初始化 API：使用模拟账户进行策略测试

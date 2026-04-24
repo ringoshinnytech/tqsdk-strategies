@@ -8,7 +8,7 @@
 
 import numpy as np
 import pandas as pd
-from tqsdk import TqApi, TqAuth, TargetPosTask
+from tqsdk import TqApi, TqAuth, TqSim, TargetPosTask
 
 # ========== 策略参数 ==========
 # 配对品种列表（可扩展）
@@ -51,8 +51,8 @@ def get_spread(series1, series2, hedge_ratio):
 
 # ========== 策略主体 ==========
 def main():
-    api = TqApi(auth=TqAuth("auto", "auto"))
-    target_pos = TargetPosTask(api)
+    api = TqApi(account=TqSim(), auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"))
+    target_pos = {sym: TargetPosTask(api, sym) for pair in PAIRS for sym in pair}
 
     print(f"[策略61] 统计套利跨品种对冲策略启动 | 配对数: {len(PAIRS)}")
 
@@ -108,22 +108,22 @@ def main():
 
             if zscore > ENTRY_ZSCORE and positions[pair] == 0:
                 # 价差高估：空sym1多sym2
-                target_pos.set_target_pos(sym1, -lot1)
-                target_pos.set_target_pos(sym2, lot2)
+                target_pos[sym1].set_target_volume(-lot1)
+                target_pos[sym2].set_target_volume(lot2)
                 positions[pair] = -1
                 print(f"[策略61] {pair} | Z={zscore:.2f} | 做空价差 | HR={hr:.3f}")
 
             elif zscore < -ENTRY_ZSCORE and positions[pair] == 0:
                 # 价差低估：多sym1空sym2
-                target_pos.set_target_pos(sym1, lot1)
-                target_pos.set_target_pos(sym2, -lot2)
+                target_pos[sym1].set_target_volume(lot1)
+                target_pos[sym2].set_target_volume(-lot2)
                 positions[pair] = 1
                 print(f"[策略61] {pair} | Z={zscore:.2f} | 做多价差 | HR={hr:.3f}")
 
             elif abs(zscore) < EXIT_ZSCORE and positions[pair] != 0:
                 # 回归均值：平仓
-                target_pos.set_target_pos(sym1, 0)
-                target_pos.set_target_pos(sym2, 0)
+                target_pos[sym1].set_target_volume(0)
+                target_pos[sym2].set_target_volume(0)
                 print(f"[策略61] {pair} | Z={zscore:.2f} | 平仓 | 收益锁定")
                 positions[pair] = 0
 

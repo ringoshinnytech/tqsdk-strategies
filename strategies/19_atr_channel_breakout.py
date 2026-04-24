@@ -55,7 +55,7 @@ def calc_atr(high, low, close, period):
 
 
 def main():
-    api = TqApi(account=TqSim(), auth=TqAuth("账号", "密码"))
+    api = TqApi(account=TqSim(), auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"))
     print(f"[ATR通道突破] 启动，品种={SYMBOL}")
 
     klines = api.get_kline_serial(SYMBOL, KLINE_DURATION, DATA_LENGTH)

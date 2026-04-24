@@ -79,7 +79,7 @@ pip install tqsdk -U -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host=
 ```python
 from tqsdk import TqApi, TqAuth
 
-api = TqApi(auth=TqAuth("快期账户", "账户密码"))
+api = TqApi(auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"))
 quote = api.get_quote("SHFE.rb2501")
 
 while True:
@@ -95,7 +95,7 @@ from tqsdk import TqApi, TqAuth, TqBacktest
 
 api = TqApi(
     backtest=TqBacktest(start_dt=date(2023, 1, 1), end_dt=date(2024, 1, 1)),
-    auth=TqAuth("快期账户", "账户密码")
+    auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD")
 )
 ```
 
@@ -248,8 +248,6 @@ api = TqApi(
 ---
 
 ## 📅 更新计划
-
-本仓库每天自动新增 **2 个策略**，持续扩充策略库。
 
 ---
 

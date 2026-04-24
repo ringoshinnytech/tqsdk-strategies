@@ -174,18 +174,18 @@ class VolatilitySkewStrategy:
         # 平仓不在目标名单的仓位
         for sym in current_long:
             if sym not in long_list:
-                self.api.close_long(sym)
+                self.api.insert_order(sym, direction="SELL", offset="CLOSE", volume=positions[sym].pos_long)
         for sym in current_short:
             if sym not in short_list:
-                self.api.close_short(sym)
+                self.api.insert_order(sym, direction="BUY", offset="CLOSE", volume=positions[sym].pos_short)
 
         # 开仓
         for sym in long_list:
             if sym not in current_long:
-                self.api.open_long(sym, 1)
+                self.api.insert_order(sym, direction="BUY", offset="OPEN", volume=1)
         for sym in short_list:
             if sym not in current_short:
-                self.api.open_short(sym, 1)
+                self.api.insert_order(sym, direction="SELL", offset="OPEN", volume=1)
 
         self.long_pos = long_list
         self.short_pos = short_list
@@ -214,6 +214,6 @@ class VolatilitySkewStrategy:
 
 if __name__ == "__main__":
     # 使用模拟账户
-    api = TqSim()
+    api = TqApi(account=TqSim(), auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"))
     strategy = VolatilitySkewStrategy(api)
     strategy.run()

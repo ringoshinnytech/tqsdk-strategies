@@ -218,7 +218,7 @@ def cross_section_rank(scores_dict):
 
 
 def main():
-    api = TqApi(auth=TqAuth("13556817485", "asd159753"))
+    api = TqApi(account=TqSim(), auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"))
 
     print("=" * 60)
     print("策略59：时序波动率与截面动量复合趋势策略")
@@ -227,7 +227,11 @@ def main():
     # 初始化K线数据
     klines = {}
     for sym in SYMBOLS:
-        klines[sym] = api.get_tick_serial(sym)
+        klines[sym] = api.get_kline_serial(
+            sym,
+            KLINE_DUR,
+            data_length=max(BOLL_PERIOD, VOL_PERIOD, ADX_PERIOD * 2, MOM_PERIOD) + 20,
+        )
         print(f"  订阅品种：{sym}")
 
     print("\n等待数据加载...")
@@ -242,11 +246,7 @@ def main():
     with api.register_update_notify():
         while True:
             api.wait_update()
-            now = api.get_trading_time()
-            if now is None:
-                continue
-
-            current_date = now.strftime("%Y-%m-%d") if hasattr(now, 'strftime') else str(now)[:10]
+            current_date = time.strftime("%Y-%m-%d")
             if current_date == last_rebalance_date:
                 continue
 

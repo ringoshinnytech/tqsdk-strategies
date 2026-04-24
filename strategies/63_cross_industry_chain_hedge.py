@@ -9,7 +9,7 @@
 
 import numpy as np
 import pandas as pd
-from tqsdk import TqApi, TqAuth, TargetPosTask
+from tqsdk import TqApi, TqAuth, TqSim, TargetPosTask
 
 # ========== 策略参数 ==========
 # 核心产业链配置
@@ -95,8 +95,7 @@ def calc_zscore(current_dev, dev_history):
 
 # ========== 策略主体 ==========
 def main():
-    api = TqApi(auth=TqAuth("auto", "auto"))
-    target_pos = TargetPosTask(api)
+    api = TqApi(account=TqSim(), auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"))
 
     print(f"[策略63] 跨品种产业链对冲轮转策略启动 | 产业链: {len(CHAINS)}")
 
@@ -104,6 +103,7 @@ def main():
     all_symbols = set()
     for chain in CHAINS:
         all_symbols.update([chain["upstream"], chain["midstream"], chain["downstream"]])
+    target_pos = {sym: TargetPosTask(api, sym) for sym in all_symbols}
 
     klines = {}
     for sym in all_symbols:
@@ -165,27 +165,27 @@ def main():
             # 入场逻辑
             if z_signal > ENTRY_ZSCORE and positions[chain_name] == 0:
                 # 产业链比值偏高：做空上游，做多下游（利润被压缩）
-                target_pos.set_target_pos(up_sym, -lot)
-                target_pos.set_target_pos(down_sym, lot)
-                target_pos.set_target_pos(mid_sym, 0)
+                target_pos[up_sym].set_target_volume(-lot)
+                target_pos[down_sym].set_target_volume(lot)
+                target_pos[mid_sym].set_target_volume(0)
                 positions[chain_name] = -1
                 print(f"         >>> 入场: 做空{chain['upstream']}/做多{chain['downstream']} "
                       f"(Z={z_signal:.2f}, 产业链扩张)")
 
             elif z_signal < -ENTRY_ZSCORE and positions[chain_name] == 0:
                 # 产业链比值偏低：做多上游，做空下游（利润被挤压）
-                target_pos.set_target_pos(up_sym, lot)
-                target_pos.set_target_pos(down_sym, -lot)
-                target_pos.set_target_pos(mid_sym, 0)
+                target_pos[up_sym].set_target_volume(lot)
+                target_pos[down_sym].set_target_volume(-lot)
+                target_pos[mid_sym].set_target_volume(0)
                 positions[chain_name] = 1
                 print(f"         >>> 入场: 做多{chain['upstream']}/做空{chain['downstream']} "
                       f"(Z={z_signal:.2f}, 产业链收缩)")
 
             # 平仓逻辑
             elif abs(z_signal) < EXIT_ZSCORE and positions[chain_name] != 0:
-                target_pos.set_target_pos(up_sym, 0)
-                target_pos.set_target_pos(mid_sym, 0)
-                target_pos.set_target_pos(down_sym, 0)
+                target_pos[up_sym].set_target_volume(0)
+                target_pos[mid_sym].set_target_volume(0)
+                target_pos[down_sym].set_target_volume(0)
                 print(f"         >>> 平仓: 产业链偏离修复")
                 positions[chain_name] = 0
 

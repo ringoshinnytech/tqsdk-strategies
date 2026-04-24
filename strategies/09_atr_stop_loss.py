@@ -164,6 +164,7 @@ try:
 
     while True:
         api.wait_update()  # 等待数据更新
+        position = api.get_position(SYMBOL)
 
         # ---- 实时止损检查（每次行情更新都检查，不只在K线完成时）----
         if api.is_changing(quote):
@@ -172,16 +173,18 @@ try:
             # 检查多仓止损（价格跌破追踪止损线）
             if position.volume_long > 0 and long_stop_price > 0:
                 if current_price < long_stop_price:
+                    triggered_stop_price = long_stop_price
                     target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
                     long_stop_price = 0.0  # 重置止损价
-                    print(f"[ATR止损策略] 多仓止损触发：价格={current_price:.2f}，止损线={long_stop_price:.2f}")
+                    print(f"[ATR止损策略] 多仓止损触发：价格={current_price:.2f}，止损线={triggered_stop_price:.2f}")
 
             # 检查空仓止损（价格涨破追踪止损线）
             if position.volume_short > 0 and short_stop_price < float('inf'):
                 if current_price > short_stop_price:
+                    triggered_stop_price = short_stop_price
                     target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
                     short_stop_price = float('inf')  # 重置止损价
-                    print(f"[ATR止损策略] 空仓止损触发：价格={current_price:.2f}，止损线={short_stop_price:.2f}")
+                    print(f"[ATR止损策略] 空仓止损触发：价格={current_price:.2f}，止损线={triggered_stop_price:.2f}")
 
         # ---- K线更新：计算指标并更新追踪止损线 ----
         if api.is_changing(klines):

@@ -189,6 +189,9 @@ try:
             short_exit = (cci_prev <= -LEVEL1) and (cci_cur > -LEVEL1)
 
             # ---- 查询当前持仓 ----
+            position = api.get_position(SYMBOL)
+            volume_long = position.volume_long
+            volume_short = position.volume_short
 
             # ---- 执行平仓逻辑（优先平仓）----
 

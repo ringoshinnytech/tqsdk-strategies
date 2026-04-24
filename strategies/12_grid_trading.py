@@ -171,6 +171,7 @@ try:
 
     while True:
         api.wait_update()
+        position = api.get_position(SYMBOL)
 
         # 监控实时报价变化
         if api.is_changing(quote):
@@ -216,9 +217,10 @@ try:
                 if price_crossed_down and not grid_has_position[grid_price]:
                     # 检查总持仓是否超过上限
                     if total_long < MAX_GRID_POSITION:
-                        target_pos.set_target_volume(VOLUME)   # 做多：TargetPosTask自动追单到目标仓位
+                        new_total_long = min(total_long + VOLUME, MAX_GRID_POSITION)
+                        target_pos.set_target_volume(new_total_long)   # 做多：TargetPosTask自动追单到目标仓位
                         grid_has_position[grid_price] = True  # 标记该层有持仓
-                        total_long += VOLUME  # 更新本地持仓计数
+                        total_long = new_total_long  # 更新本地持仓计数
                         print(
                             f"[网格策略] 买入：网格线={grid_price}，"
                             f"当前价={current_price:.2f}，买入{VOLUME}手"
@@ -229,9 +231,10 @@ try:
                     # 找下方最近的持仓网格（卖出下方的持仓，实现低买高卖）
                     grid_below = get_grid_below(grid_price, grid_lines)
                     if grid_below is not None and grid_has_position.get(grid_below, False):
-                        target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
+                        new_total_long = max(total_long - VOLUME, 0)
+                        target_pos.set_target_volume(new_total_long)           # 平仓：TargetPosTask自动平掉全部持仓
                         grid_has_position[grid_below] = False  # 清除该层持仓状态
-                        total_long -= VOLUME
+                        total_long = new_total_long
                         profit_estimate = (grid_price - grid_below) * VOLUME
                         print(
                             f"[网格策略] 卖出：网格线={grid_price}，"

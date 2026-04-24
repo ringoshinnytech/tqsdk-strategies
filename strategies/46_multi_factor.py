@@ -52,6 +52,9 @@ class MultiFactorStrategy:
         self.n_atr = self.params.get('n_atr', 14)             # ATR周期
         self.n_vol = self.params.get('n_vol', 20)             # 成交量周期
         self.n_top = self.params.get('n_top', 3)              # 选取前N个品种
+        self.kline_duration = self.params.get('kline_duration', 86400)
+        self.check_interval = timedelta(seconds=self.params.get('check_interval_seconds', 60))
+        self.last_check_time = datetime.min
         
         # 因子权重
         self.w_momentum = self.params.get('w_momentum', 0.3)  # 动量权重
@@ -76,7 +79,7 @@ class MultiFactorStrategy:
         """
         try:
             # 获取K线数据
-            klines = self.api.get_kline_serial(symbol, n)
+            klines = self.api.get_kline_serial(symbol, self.kline_duration, data_length=n)
             if klines is None or len(klines) < max(self.n_ma_long, self.n_momentum, self.n_vol):
                 return None
                 
@@ -212,8 +215,9 @@ class MultiFactorStrategy:
                 # 等待下一个交易日
                 self.api.wait_update()
                 
-                # 每日开盘后进行选股
-                if self.api.is_changing(self.api.get_trading_time(), "date"):
+                now = datetime.now()
+                if now - self.last_check_time >= self.check_interval:
+                    self.last_check_time = now
                     print(f"\n[{datetime.now()}] 执行因子选股...")
                     
                     # 更新持仓
@@ -239,7 +243,7 @@ class MultiFactorStrategy:
 def main():
     """主函数"""
     # 使用模拟账户
-    api = TqApi(auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"))
+    api = TqApi(account=TqSim(), auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"))
     
     # 交易品种列表（期货）
     symbols = [

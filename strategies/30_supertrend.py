@@ -191,7 +191,7 @@ def main():
     # ─────────────────────────────────────────
     api = TqApi(
         account=TqSim(init_balance=200000),
-        auth=TqAuth("your_username", "your_password"),  # 请替换为实际账号
+        auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"),  # 请替换为实际账号
         backtest=...,   # 如需回测，传入 TqBacktest 对象；实盘删除此参数
     )
 

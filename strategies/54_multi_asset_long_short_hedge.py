@@ -66,7 +66,7 @@ def calc_volatility(close_prices, period):
 
 
 def main():
-    api = TqApi(auth=TqAuth("13556817485", "asd159753"))
+    api = TqApi(account=TqSim(), auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"))
 
     print("=" * 60)
     print("策略54：多标的截面多空对冲策略")

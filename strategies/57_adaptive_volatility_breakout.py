@@ -228,14 +228,18 @@ def calc_adaptive_stop_loss(entry_price, current_atr, vol_percentile, direction,
 
 
 def main():
-    api = TqApi(auth=TqAuth("13556817485", "asd159753"))
+    api = TqApi(account=TqSim(), auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"))
 
     print("=" * 60)
     print("策略57：自适应波动率突破策略（基于波动锥）")
     print("=" * 60)
 
     # 订阅K线数据
-    klines = api.get_tick_serial(SYMBOL)
+    klines = api.get_kline_serial(
+        SYMBOL,
+        KLINE_DUR,
+        data_length=max(VOL_CONE_WINDOWS) * 86400 // KLINE_DUR + BOLL_PERIOD * 2,
+    )
     print(f"  订阅品种：{SYMBOL}")
 
     print("等待数据加载...")
@@ -255,9 +259,7 @@ def main():
     with api.register_update_notify():
         while True:
             api.wait_update()
-            now = api.get_trading_time()
-            if now is None:
-                continue
+            now = time.strftime("%Y-%m-%d %H:%M:%S")
 
             if len(klines) < max(VOL_CONE_WINDOWS) * 86400 // KLINE_DUR + BOLL_PERIOD * 2:
                 continue
@@ -370,8 +372,7 @@ def main():
                     current_annual_vol = current_vol * np.sqrt(252)
                     if current_annual_vol > 0:
                         vol_ratio = TARGET_VOL / current_annual_vol
-                        target_lot = -int(min(vol_ratio * BASE_LOT, 10))
-                        target_lot = max(target_lot, -1)
+                        target_lot = -max(1, int(min(vol_ratio * BASE_LOT, 10)))
                     else:
                         target_lot = -BASE_LOT
 
