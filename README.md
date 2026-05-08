@@ -101,148 +101,109 @@ api = TqApi(
 
 ---
 
-## 🌐 TqSdk 策略生态矩阵
+## 📁 策略分类（70个）
 
-本仓库是 **TqSdk 策略生态** 的综合趋势策略分支，以下保留目前仍可访问的相关仓库：
+> 每个策略文件包含：**500字以上策略思路讲解 + 完整可运行代码 + 详细中文注释**。以下按策略主逻辑重新归类；如果一个策略同时具备多种特征，只放在最主要的一类中，方便快速查找。
 
-| 仓库 | 作者 | 专项方向 | 链接 |
-|------|------|---------|------|
-| 📈 tqsdk-strategies | ringoshinnytech | **综合趋势策略**（MA/MACD/SuperTrend/ATR等） | [本仓库](https://github.com/ringoshinnytech/tqsdk-strategies) |
-| 🛡️ tqsdk-options | setherffw | **期权策略**（Delta对冲、Gamma Scalping、波动率套利、期权组合） | [查看](https://github.com/setherffw/tqsdk-options) |
-
-### 截面多空类
-
-| 策略文件 | 策略名称 | 核心逻辑 |
-|---------|---------|---------|
-| [27_multi_factor_ranking.py](strategies/27_multi_factor_ranking.py) | 多因子截面排名策略 | 动量+波动率+趋势三因子截面排名，做多综合得分最高、做空得分最低 |
-| [28_volatility_breakout.py](strategies/28_volatility_breakout.py) | 波动率动量突破策略 | ATR 突破 + ADX 趋势确认，动态止损跟踪趋势 |
-
-## 📁 策略列表（70个）
-
-> 每个策略文件包含：**500字以上策略思路讲解 + 完整可运行代码 + 详细中文注释**
-
-### 趋势跟踪类
+### 趋势跟踪与趋势强度类
 
 | 策略文件 | 策略名称 | 核心逻辑 |
 |---------|---------|---------|
 | [01_double_ma.py](strategies/01_double_ma.py) | 双均线趋势策略 | MA5/MA20 金叉做多、死叉做空 |
+| [05_turtle_trading.py](strategies/05_turtle_trading.py) | 海龟交易策略 | 唐奇安通道突破 + ATR 仓位管理 |
 | [06_macd_trend.py](strategies/06_macd_trend.py) | MACD 趋势策略 | DIF/DEA 金叉死叉，动能确认趋势方向 |
+| [09_atr_stop_loss.py](strategies/09_atr_stop_loss.py) | ATR 动态止损策略 | 均线趋势入场 + ATR 追踪止损出场 |
 | [16_aroon_trend.py](strategies/16_aroon_trend.py) | Aroon 指标趋势策略 | Aroon Up/Down 强弱对比判断趋势 |
+| [18_parabolic_sar.py](strategies/18_parabolic_sar.py) | 抛物线转向策略 | SAR 跟踪止损点，价格穿越 SAR 转向 |
+| [19_ichimoku_cloud.py](strategies/19_ichimoku_cloud.py) | 一目均衡表趋势策略 | 转换线、基准线和云层共同确认趋势 |
 | [20_hull_ma.py](strategies/20_hull_ma.py) | Hull 移动平均线策略 | 减少均线滞后的 WMA 加权趋势跟踪 |
-| [22_trix_trend.py](strategies/22_trix_trend.py) | TRIX 三重指数策略 | 三重EMA变化率，过滤短期噪音 |
+| [22_trix_trend.py](strategies/22_trix_trend.py) | TRIX 三重指数策略 | 三重 EMA 变化率过滤短期噪音 |
 | [25_multiperiod_ma.py](strategies/25_multiperiod_ma.py) | 多周期均线共振策略 | 日/小时/分钟三周期均线方向一致才入场 |
+| [29_adx_trend_filter.py](strategies/29_adx_trend_filter.py) | ADX 趋势强度过滤策略 | ADX 确认趋势强度，+DI/-DI 判断方向，ATR 追踪止损 |
+| [30_supertrend.py](strategies/30_supertrend.py) | SuperTrend 超级趋势策略 | ATR 倍数动态上下轨，趋势翻转时平仓反手 |
+| [32_ichimoku_cloud.py](strategies/32_ichimoku_cloud.py) | 一目均衡云图策略 | 云层突破与多线确认结合的趋势策略 |
+| [36_guppy_ma.py](strategies/36_guppy_ma.py) | 顾比均线复合策略 | 短期均线组与长期均线组比较趋势强弱 |
+| [40_momentum_acceleration.py](strategies/40_momentum_acceleration.py) | 趋势动量加速策略 | 趋势确认后捕捉动量继续增强阶段 |
+| [41_bullish_ma_arrangement.py](strategies/41_bullish_ma_arrangement.py) | 均线多头排列趋势策略 | 短中长期均线多头排列确认上升趋势 |
+| [43_ma_crossover.py](strategies/43_ma_crossover.py) | 均线金叉死叉趋势策略 | 短长均线交叉结合成交量确认方向 |
+| [44_guppy_ma_trend.py](strategies/44_guppy_ma_trend.py) | 顾比均线复合趋势策略 | 两组顾比均线共振确认趋势 |
 
-### 突破类
+### 突破与通道类
 
 | 策略文件 | 策略名称 | 核心逻辑 |
 |---------|---------|---------|
 | [02_boll_breakout.py](strategies/02_boll_breakout.py) | 布林带突破策略 | 上轨突破做多、下轨跌破做空、带宽过滤 |
+| [04_dual_thrust.py](strategies/04_dual_thrust.py) | Dual Thrust 日内突破 | 开盘价 ± Range 动态轨道，收盘前强制平仓 |
 | [08_cci_breakout.py](strategies/08_cci_breakout.py) | CCI 顺势指标策略 | ±100 反向、±200 顺势突破 |
 | [10_momentum_breakout.py](strategies/10_momentum_breakout.py) | 价格动量突破策略 | N 日涨跌幅动量信号触发入场 |
-| [13_opening_range_breakout.py](strategies/13_opening_range_breakout.py) | 开盘区间突破策略 | 开盘前30分钟高低点作为当日突破区间 |
+| [13_opening_range_breakout.py](strategies/13_opening_range_breakout.py) | 开盘区间突破策略 | 开盘前 30 分钟高低点作为当日突破区间 |
 | [15_donchian_channel.py](strategies/15_donchian_channel.py) | 唐奇安通道策略 | N 日最高最低价通道突破入场 |
-| [21_keltner_channel.py](strategies/21_keltner_channel.py) | 肯特纳通道策略 | EMA±ATR 通道，价格突破做趋势 |
+| [19_atr_channel_breakout.py](strategies/19_atr_channel_breakout.py) | ATR 通道突破策略 | ATR 动态通道突破后顺势入场 |
+| [21_keltner_channel.py](strategies/21_keltner_channel.py) | 肯特纳通道策略 | EMA ± ATR 通道，价格突破做趋势 |
+| [28_volatility_breakout.py](strategies/28_volatility_breakout.py) | 波动率动量突破策略 | ATR 突破 + ADX 趋势确认，动态止损跟踪趋势 |
+| [32_linear_regression_channel.py](strategies/32_linear_regression_channel.py) | 线性回归通道策略 | 用回归中轴和通道衡量趋势与偏离 |
+| [34_vwap_breakout.py](strategies/34_vwap_breakout.py) | VWAP 突破策略 | 价格带量突破 VWAP 后顺势跟进 |
+| [37_volatility_breakout.py](strategies/37_volatility_breakout.py) | 波动率突破策略 | ATR 波动率通道突破确认趋势启动 |
+| [39_vwap_breakout_volume.py](strategies/39_vwap_breakout_volume.py) | 成交量加权价格突破策略 | 价格突破叠加成交量放大过滤假突破 |
+| [57_adaptive_volatility_breakout.py](strategies/57_adaptive_volatility_breakout.py) | 自适应波动率突破策略 | 波动率越高仓位越低，止损止盈随波动环境调整 |
 
-### 均值回归类
-
-| 策略文件 | 策略名称 | 核心逻辑 |
-|---------|---------|---------|
-| [03_rsi_mean_reversion.py](strategies/03_rsi_mean_reversion.py) | RSI 均值回归策略 | RSI<30 超卖做多、RSI>70 超买做空 |
-| [07_kdj_signal.py](strategies/07_kdj_signal.py) | KDJ 随机指标策略 | K/D/J 线超买超卖，随机波动捕捉反转 |
-| [11_mean_reversion_zscore.py](strategies/11_mean_reversion_zscore.py) | Z-Score 均值回归策略 | 价格偏离均值 N 个标准差后回归 |
-| [17_stochastic_rsi.py](strategies/17_stochastic_rsi.py) | 随机 RSI 策略 | 对 RSI 再做随机处理，更灵敏的超买超卖 |
-| [19_williams_r.py](strategies/19_williams_r.py) | 威廉指标策略 | %R 超买超卖，日内情绪指标 |
-| [23_pivot_point.py](strategies/23_pivot_point.py) | 枢轴点支撑阻力策略 | 昨日高低收计算今日支撑阻力，关键位反转 |
-
-### 日内策略类
+### 均值回归与震荡反转类
 
 | 策略文件 | 策略名称 | 核心逻辑 |
 |---------|---------|---------|
-| [04_dual_thrust.py](strategies/04_dual_thrust.py) | Dual Thrust 日内突破 | 开盘价±Range 动态轨道，收盘前强制平仓 |
-| [24_r_breaker.py](strategies/24_r_breaker.py) | R-Breaker 日内策略 | 6条价格线：突破/观察/反转三类信号 |
-
-### 系统化/风控类
-
-| 策略文件 | 策略名称 | 核心逻辑 |
-|---------|---------|---------|
-| [05_turtle_trading.py](strategies/05_turtle_trading.py) | 海龟交易策略 | 唐奇安通道突破 + ATR 仓位管理 |
-| [09_atr_stop_loss.py](strategies/09_atr_stop_loss.py) | ATR 动态止损策略 | 均线趋势入场 + ATR 追踪止损出场 |
+| [03_rsi_mean_reversion.py](strategies/03_rsi_mean_reversion.py) | RSI 均值回归策略 | RSI < 30 超卖做多、RSI > 70 超买做空 |
+| [07_kdj_signal.py](strategies/07_kdj_signal.py) | KDJ 随机指标策略 | K/D/J 线超买超卖，捕捉短期反转 |
+| [11_mean_reversion_zscore.py](strategies/11_mean_reversion_zscore.py) | Z-Score 均值回归策略 | 价格偏离均值 N 个标准差后等待回归 |
 | [12_grid_trading.py](strategies/12_grid_trading.py) | 网格交易策略 | 价格区间内按网格间距自动挂单买卖 |
-| [14_volume_price_trend.py](strategies/14_volume_price_trend.py) | 量价趋势策略 | 成交量配合价格突破做信号验证 |
-| [18_parabolic_sar.py](strategies/18_parabolic_sar.py) | 抛物线转向策略 | SAR 跟踪止损点，价格穿越 SAR 转向 |
+| [17_stochastic_rsi.py](strategies/17_stochastic_rsi.py) | 随机 RSI 策略 | 对 RSI 再做随机处理，提高超买超卖敏感度 |
+| [18_bollinger_mean_reversion.py](strategies/18_bollinger_mean_reversion.py) | 布林带均值回归策略 | 价格触及布林带极端区间后做回归交易 |
+| [18_vwap_mean_reversion.py](strategies/18_vwap_mean_reversion.py) | VWAP 日内均值回归策略 | 围绕日内 VWAP 偏离做回归，尾盘控制隔夜风险 |
+| [19_williams_r.py](strategies/19_williams_r.py) | 威廉指标策略 | %R 超买超卖，观察短期情绪反转 |
+| [23_pivot_point.py](strategies/23_pivot_point.py) | 枢轴点支撑阻力策略 | 昨日高低收计算今日支撑阻力，关键位反转 |
+| [24_r_breaker.py](strategies/24_r_breaker.py) | R-Breaker 日内策略 | 6 条价格线结合突破、观察和反转信号 |
+| [31_vwap_mean_reversion.py](strategies/31_vwap_mean_reversion.py) | VWAP 均值回归日内策略 | 日内 VWAP + 标准差带，价格回归至 VWAP 附近平仓 |
+| [33_boll_mean_reversion.py](strategies/33_boll_mean_reversion.py) | 布林带均值回归策略 | 布林带极端偏离后的中轨回归 |
+| [35_fibonacci_retracement.py](strategies/35_fibonacci_retracement.py) | 斐波那契回调策略 | 关键回调比例位结合趋势方向交易 |
+| [38_boll_mean_reversion.py](strategies/38_boll_mean_reversion.py) | 布林带均值回归策略 | 上下轨极端位置反向交易，回归中轨平仓 |
+| [42_bollinger_mean_reversion.py](strategies/42_bollinger_mean_reversion.py) | 布林带均值回归策略 | 布林带偏离结合 RSI 判断超买超卖 |
+| [45_trend_filtered_rsi.py](strategies/45_trend_filtered_rsi.py) | 趋势过滤 RSI 震荡策略 | 趋势方向过滤后，用 RSI 寻找回调机会 |
 
-### 资金流向类
+### 量价资金流类
 
 | 策略文件 | 策略名称 | 核心逻辑 |
 |---------|---------|---------|
+| [14_volume_price_trend.py](strategies/14_volume_price_trend.py) | 量价趋势策略 | 成交量配合价格突破做信号验证 |
 | [26_chaikin_money_flow.py](strategies/26_chaikin_money_flow.py) | 蔡金资金流量策略 | CMF 衡量买卖资金净流向，上穿阈值做多，下穿阈值做空 |
 | [28_obv_trend.py](strategies/28_obv_trend.py) | OBV 能量潮趋势策略 | OBV 短/长均线金叉死叉，量能领先价格判断资金流向 |
 
-### 多周期综合类
+### 多因子截面与组合轮动类
 
 | 策略文件 | 策略名称 | 核心逻辑 |
 |---------|---------|---------|
-| [27_elder_triple_screen.py](strategies/27_elder_triple_screen.py) | Elder 三屏交易系统 | 日线MACD趋势+小时线Stochastic超买超卖+15分钟均线精确入场 |
-
-### 趋势强度过滤类
-
-| 策略文件 | 策略名称 | 核心逻辑 |
-|---------|---------|---------|
-| [29_adx_trend_filter.py](strategies/29_adx_trend_filter.py) | ADX 趋势强度过滤策略 | ADX>25确认趋势强度，+DI/-DI判断方向，ATR追踪止损动态护盈 |
-| [30_supertrend.py](strategies/30_supertrend.py) | SuperTrend 超级趋势指标策略 | ATR倍数动态上下轨，趋势翻转时平仓反手，自带追踪止损 |
-
-### 均值回归（日内）类
-
-| 策略文件 | 策略名称 | 核心逻辑 |
-|---------|---------|---------|
-| [31_vwap_mean_reversion.py](strategies/31_vwap_mean_reversion.py) | VWAP 均值回归日内策略 | 日内滚动VWAP+标准差带，价格偏离N倍σ入场，回归至VWAP附近平仓，尾盘强平 |
-
-### 新增与补充策略类
-
-| 策略文件 | 策略名称 | 核心逻辑 |
-|---------|---------|---------|
-| [18_bollinger_mean_reversion.py](strategies/18_bollinger_mean_reversion.py) | 布林带均值回归策略 | 价格触及布林带极端区间后做回归交易 |
-| [18_vwap_mean_reversion.py](strategies/18_vwap_mean_reversion.py) | VWAP 日内均值回归策略 | 围绕日内 VWAP 偏离做回归，尾盘控制隔夜风险 |
-| [19_atr_channel_breakout.py](strategies/19_atr_channel_breakout.py) | ATR 通道突破策略 | ATR 动态通道突破后顺势入场 |
-| [19_ichimoku_cloud.py](strategies/19_ichimoku_cloud.py) | 一目均衡表趋势策略 | 转换线、基准线和云层共同确认趋势 |
-| [32_ichimoku_cloud.py](strategies/32_ichimoku_cloud.py) | 一目均衡云图策略 | 云层突破与多线确认结合的趋势策略 |
-| [32_linear_regression_channel.py](strategies/32_linear_regression_channel.py) | 线性回归通道策略 | 用回归中轴和通道衡量趋势与偏离 |
-| [33_boll_mean_reversion.py](strategies/33_boll_mean_reversion.py) | 布林带均值回归策略 | 布林带极端偏离后的中轨回归 |
-| [34_vwap_breakout.py](strategies/34_vwap_breakout.py) | VWAP 突破策略 | 价格带量突破 VWAP 后顺势跟进 |
-| [35_fibonacci_retracement.py](strategies/35_fibonacci_retracement.py) | 斐波那契回调策略 | 关键回调比例位结合趋势方向交易 |
-| [36_guppy_ma.py](strategies/36_guppy_ma.py) | 顾比均线复合策略 | 短期均线组与长期均线组比较趋势强弱 |
-| [37_volatility_breakout.py](strategies/37_volatility_breakout.py) | 波动率突破策略 | ATR 波动率通道突破确认趋势启动 |
-| [38_boll_mean_reversion.py](strategies/38_boll_mean_reversion.py) | 布林带均值回归策略 | 上下轨极端位置反向交易，回归中轨平仓 |
-| [39_vwap_breakout_volume.py](strategies/39_vwap_breakout_volume.py) | 成交量加权价格突破策略 | 价格突破叠加成交量放大过滤假突破 |
-| [40_momentum_acceleration.py](strategies/40_momentum_acceleration.py) | 趋势动量加速策略 | 趋势确认后捕捉动量继续增强阶段 |
-| [41_bullish_ma_arrangement.py](strategies/41_bullish_ma_arrangement.py) | 均线多头排列趋势策略 | 短中长期均线多头排列确认上升趋势 |
-| [42_bollinger_mean_reversion.py](strategies/42_bollinger_mean_reversion.py) | 布林带均值回归策略 | 布林带偏离结合 RSI 判断超买超卖 |
-| [43_ma_crossover.py](strategies/43_ma_crossover.py) | 均线金叉死叉趋势策略 | 短长均线交叉结合成交量确认方向 |
-| [44_guppy_ma_trend.py](strategies/44_guppy_ma_trend.py) | 顾比均线复合趋势策略 | 两组顾比均线共振确认趋势 |
-| [45_trend_filtered_rsi.py](strategies/45_trend_filtered_rsi.py) | 趋势过滤 RSI 震荡策略 | 趋势方向过滤后用 RSI 寻找回调机会 |
+| [27_elder_triple_screen.py](strategies/27_elder_triple_screen.py) | Elder 三屏交易系统 | 日线趋势、小时线震荡和 15 分钟入场信号分层确认 |
+| [27_multi_factor_ranking.py](strategies/27_multi_factor_ranking.py) | 多因子截面排名策略 | 动量 + 波动率 + 趋势三因子截面排名，做多强势、做空弱势 |
+| [46_multi_factor.py](strategies/46_multi_factor.py) | 多因子量化选股策略 | 动量、趋势、波动率、成交量四因子加权评分 |
+| [48_sector_rotation_multi_factor.py](strategies/48_sector_rotation_multi_factor.py) | 截面多因子行业轮动策略 | 跨板块多因子打分，按强弱做轮动配置 |
+| [49_mean_variance_portfolio.py](strategies/49_mean_variance_portfolio.py) | 均值方差最优组合策略 | 最大夏普比率组合，结合波动率目标调仓 |
+| [50_volatility_skew.py](strategies/50_volatility_skew.py) | 截面波动率偏度交易策略 | 收益率偏度、波动率、动量和成交量因子共同筛选 |
+| [52_multi_factor_ai_prediction.py](strategies/52_multi_factor_ai_prediction.py) | 多因子 AI 预测策略 | 融合多类因子生成预测信号，驱动品种轮动和仓位调整 |
+| [54_multi_asset_long_short_hedge.py](strategies/54_multi_asset_long_short_hedge.py) | 多标的截面多空对冲策略 | 动量排名 + 趋势过滤 + 流动性过滤，构建等权多空组合 |
+| [55_momentum_value_factor_composite.py](strategies/55_momentum_value_factor_composite.py) | 时序动量与截面价值因子复合策略 | 20 日动量与期限结构价值因子组合，做截面多空 |
+| [56_cross_section_multi_factor_ranking.py](strategies/56_cross_section_multi_factor_ranking.py) | 截面多因子 Ranking 轮动策略 | 黑色系五品种按动量、波动率和 ADX 排名轮动 |
+| [58_money_flow_rotation.py](strategies/58_money_flow_rotation.py) | 截面资金流向多空轮动策略 | CMF、持仓量背离和 VWAP 偏离共同打分轮动 |
+| [59_vol_momentum_composite.py](strategies/59_vol_momentum_composite.py) | 时序波动率与截面动量复合趋势策略 | 时序信号和截面收益率双重确认，按趋势强弱调整仓位 |
+| [60_cross_section_ml_ranking.py](strategies/60_cross_section_ml_ranking.py) | 截面多因子机器学习排名策略 | 用截面排名、多因子打分和机器学习思路筛选品种 |
 | [62_macro_factor_rotation.py](strategies/62_macro_factor_rotation.py) | 宏观因子轮转截面策略 | 宏观因子暴露打分驱动多品种轮转 |
-| [63_cross_industry_chain_hedge.py](strategies/63_cross_industry_chain_hedge.py) | 跨品种产业链对冲轮转策略 | 围绕产业链利润偏离进行配对对冲 |
 
-### 多因子/对冲类
+### 对冲套利与结构交易类
 
 | 策略文件 | 策略名称 | 核心逻辑 |
 |---------|---------|---------|
-| [46_multi_factor.py](strategies/46_multi_factor.py) | 多因子量化选股策略 | 动量+趋势+波动率+成交量四因子加权评分，选强势品种交易 |
-| [47_cross_market_hedge.py](strategies/47_cross_market_hedge.py) | 跨市场对冲策略 | 基于Z-Score的跨品种价差套利，做多低估做空高估 |
-| [48_sector_rotation_multi_factor.py](strategies/48_sector_rotation_multi_factor.py) | 截面多因子行业轮动策略 | 动量+波动率+成交量+趋势四因子截面打分，跨板块多空轮动 |
-| [49_mean_variance_portfolio.py](strategies/49_mean_variance_portfolio.py) | 均值方差最优组合策略 | Markowitz最大夏普比率组合，波动率目标调仓，多品种联合配置 |
-| [50_volatility_skew.py](strategies/50_volatility_skew.py) | 截面波动率偏度交易策略 | 20日收益率分布偏度+波动率水平+动量+成交量四因子截面打分，筛选低风险高动量品种 |
-| [51_term_structure.py](strategies/51_term_structure.py) | 期限结构基差回归策略 | 基于近远月价比的对数斜率，当斜率偏离历史均值1.5倍标准差时入场，做价差均值回归 |
-| [52_multi_factor_ai_prediction.py](strategies/52_multi_factor_ai_prediction.py) | 多因子AI预测策略 | 融合动量/趋势/波动率/成交量因子，基于预测信号进行品种轮动和仓位调整 |
-| [53_market_maker_hedge.py](strategies/53_market_maker_hedge.py) | 跨品种做市商对冲策略 | 模拟做市商在多品种上挂单，使用跨品种对冲消除方向性风险，赚取买卖价差 |
-| [54_multi_asset_long_short_hedge.py](strategies/54_multi_asset_long_short_hedge.py) | 多标的截面多空对冲策略 | 动量因子截面排名+趋势过滤+流动性过滤，构建等权多空对冲组合剥离系统性风险 |
-| [55_momentum_value_factor_composite.py](strategies/55_momentum_value_factor_composite.py) | 时序动量与截面价值因子复合策略 | 20日动量因子与期限结构价值因子加权组合，截面多空+ADX趋势确认 |
-| [56_cross_section_multi_factor_ranking.py](strategies/56_cross_section_multi_factor_ranking.py) | 截面多因子Ranking轮动策略 | 黑色系五品种截面动量+波动率+ADX三因子排名，多空轮动消除单边风险 |
-| [57_adaptive_volatility_breakout.py](strategies/57_adaptive_volatility_breakout.py) | 自适应波动率突破策略（基于波动锥） | 三档波动率锥动态调整止损止盈，波动率越高仓位越低，趋势自适应 |
-| [58_money_flow_rotation.py](strategies/58_money_flow_rotation.py) | 截面资金流向多空轮动策略 | CMF资金流向+OI持仓量背离+VWAP偏离三重因子截面排名，多空轮动捕捉主力资金动向 |
-| [59_vol_momentum_composite.py](strategies/59_vol_momentum_composite.py) | 时序波动率与截面动量复合趋势策略 | 时序布林带+ADX+RSI与截面收益率双重确认，ADX自适应仓位过滤噪音趋势 |
-| [60_cross_section_ml_ranking.py](strategies/60_cross_section_ml_ranking.py) | 截面多因子机器学习排名策略 | 截面排名、多因子打分、机器学习因子 | 商品期货多品种 | 日线 |
-| [61_statistical_arbitrage.py](strategies/61_statistical_arbitrage.py) | 统计套利跨品种对冲策略 | 协整检验、Z-score均值回归、跨品种对冲 | 商品期货配对 | 日线 |
+| [47_cross_market_hedge.py](strategies/47_cross_market_hedge.py) | 跨市场对冲策略 | 基于 Z-Score 的跨品种价差套利，做多低估、做空高估 |
+| [51_term_structure.py](strategies/51_term_structure.py) | 期限结构基差回归策略 | 近远月价比斜率偏离历史均值后做价差回归 |
+| [53_market_maker_hedge.py](strategies/53_market_maker_hedge.py) | 跨品种做市商对冲策略 | 多品种挂单获取价差，并用相关品种对冲方向风险 |
+| [61_statistical_arbitrage.py](strategies/61_statistical_arbitrage.py) | 统计套利跨品种对冲策略 | 协整检验 + Z-Score 均值回归，构建配对对冲 |
+| [63_cross_industry_chain_hedge.py](strategies/63_cross_industry_chain_hedge.py) | 跨品种产业链对冲轮转策略 | 围绕产业链利润偏离进行配对对冲 |
 
 ---
 
