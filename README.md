@@ -101,7 +101,7 @@ api = TqApi(
 
 ---
 
-## 📁 策略分类（70个）
+## 📁 策略分类（100个）
 
 > 每个策略文件包含：**500字以上策略思路讲解 + 完整可运行代码 + 详细中文注释**。以下按策略主逻辑重新归类；如果一个策略同时具备多种特征，只放在最主要的一类中，方便快速查找。
 
@@ -127,6 +127,10 @@ api = TqApi(
 | [41_bullish_ma_arrangement.py](strategies/41_bullish_ma_arrangement.py) | 均线多头排列趋势策略 | 短中长期均线多头排列确认上升趋势 |
 | [43_ma_crossover.py](strategies/43_ma_crossover.py) | 均线金叉死叉趋势策略 | 短长均线交叉结合成交量确认方向 |
 | [44_guppy_ma_trend.py](strategies/44_guppy_ma_trend.py) | 顾比均线复合趋势策略 | 两组顾比均线共振确认趋势 |
+| [64_kama_adaptive_trend.py](strategies/64_kama_adaptive_trend.py) | KAMA 自适应均线趋势策略 | 用效率系数调节均线快慢，在噪音较低时跟随趋势、震荡时降低换手 |
+| [66_chande_momentum_trend.py](strategies/66_chande_momentum_trend.py) | Chande 动量振荡趋势策略 | 用 CMO 衡量净动量强度，并叠加中期收益率确认趋势延续 |
+| [90_trailing_atr_pyramid.py](strategies/90_trailing_atr_pyramid.py) | ATR 追踪加仓趋势策略 | 趋势确认后用 ATR 管理追踪止损，并按信号强度逐步提高目标手数 |
+| [92_drawdown_guard_trend.py](strategies/92_drawdown_guard_trend.py) | 回撤保护趋势策略 | 趋势信号有效时持仓，若价格相对近期高低点回撤过深则降低方向暴露 |
 
 ### 突破与通道类
 
@@ -146,6 +150,10 @@ api = TqApi(
 | [37_volatility_breakout.py](strategies/37_volatility_breakout.py) | 波动率突破策略 | ATR 波动率通道突破确认趋势启动 |
 | [39_vwap_breakout_volume.py](strategies/39_vwap_breakout_volume.py) | 成交量加权价格突破策略 | 价格突破叠加成交量放大过滤假突破 |
 | [57_adaptive_volatility_breakout.py](strategies/57_adaptive_volatility_breakout.py) | 自适应波动率突破策略 | 波动率越高仓位越低，止损止盈随波动环境调整 |
+| [65_fractal_dimension_breakout.py](strategies/65_fractal_dimension_breakout.py) | 分形维度过滤突破策略 | 用分形维度识别趋势化行情，仅在价格突破且路径效率较高时入场 |
+| [67_squeeze_channel_breakout.py](strategies/67_squeeze_channel_breakout.py) | 窄幅压缩通道突破策略 | 先识别布林带宽收缩，再等待价格突破近期通道并配合放量确认 |
+| [68_range_expansion_index.py](strategies/68_range_expansion_index.py) | 区间扩张强度突破策略 | 用真实波幅扩张和短期动量判断突破质量，过滤弱波动假突破 |
+| [89_time_window_breakout.py](strategies/89_time_window_breakout.py) | 交易时段窗口突破策略 | 只在预设活跃时段响应突破信号，降低低流动性时段的假信号 |
 
 ### 均值回归与震荡反转类
 
@@ -167,6 +175,11 @@ api = TqApi(
 | [38_boll_mean_reversion.py](strategies/38_boll_mean_reversion.py) | 布林带均值回归策略 | 上下轨极端位置反向交易，回归中轨平仓 |
 | [42_bollinger_mean_reversion.py](strategies/42_bollinger_mean_reversion.py) | 布林带均值回归策略 | 布林带偏离结合 RSI 判断超买超卖 |
 | [45_trend_filtered_rsi.py](strategies/45_trend_filtered_rsi.py) | 趋势过滤 RSI 震荡策略 | 趋势方向过滤后，用 RSI 寻找回调机会 |
+| [69_intraday_vwap_band_reversion.py](strategies/69_intraday_vwap_band_reversion.py) | 日内 VWAP 标准差带回归策略 | 围绕 VWAP 构建动态偏离带，价格远离成交均价后等待回归 |
+| [70_rsi_divergence_reversal.py](strategies/70_rsi_divergence_reversal.py) | RSI 背离反转策略 | 价格创新高低而 RSI 动能不确认时，捕捉短周期反转机会 |
+| [71_boll_percent_b_reversion.py](strategies/71_boll_percent_b_reversion.py) | 布林 %B 均值回归策略 | 用 %B 衡量价格在布林带内的位置，极端偏离后回归中轨 |
+| [72_volatility_contraction_reversion.py](strategies/72_volatility_contraction_reversion.py) | 波动收缩震荡回归策略 | 当 ATR 相对历史收缩时，降低追涨杀跌并交易区间内均值回归 |
+| [73_atr_normalized_zscore.py](strategies/73_atr_normalized_zscore.py) | ATR 标准化 Z-Score 回归策略 | 用 ATR 标准化价格偏离，避免高波动阶段误判普通波动为极端偏离 |
 
 ### 量价资金流类
 
@@ -175,6 +188,11 @@ api = TqApi(
 | [14_volume_price_trend.py](strategies/14_volume_price_trend.py) | 量价趋势策略 | 成交量配合价格突破做信号验证 |
 | [26_chaikin_money_flow.py](strategies/26_chaikin_money_flow.py) | 蔡金资金流量策略 | CMF 衡量买卖资金净流向，上穿阈值做多，下穿阈值做空 |
 | [28_obv_trend.py](strategies/28_obv_trend.py) | OBV 能量潮趋势策略 | OBV 短/长均线金叉死叉，量能领先价格判断资金流向 |
+| [74_mfi_money_flow_reversal.py](strategies/74_mfi_money_flow_reversal.py) | MFI 资金流反转策略 | 用资金流量指标识别量价超买超卖，寻找资金动能衰竭后的反转 |
+| [75_volume_profile_value_area.py](strategies/75_volume_profile_value_area.py) | 成交密集区价值回归策略 | 用近似成交量分布估计价值区，价格远离高成交区域后做回归 |
+| [76_open_interest_momentum.py](strategies/76_open_interest_momentum.py) | 持仓量动量确认策略 | 用价格动量叠加持仓量变化确认新增资金是否支持趋势延续 |
+| [77_turnover_rate_breakout.py](strategies/77_turnover_rate_breakout.py) | 换手放大突破策略 | 用成交活跃度突增确认突破有效性，减少低流动性环境中的噪声交易 |
+| [78_negative_volume_index.py](strategies/78_negative_volume_index.py) | 负成交量指数趋势策略 | 在低量日跟踪价格累积方向，用 NVI 均线判断主导趋势 |
 
 ### 多因子截面与组合轮动类
 
@@ -194,6 +212,13 @@ api = TqApi(
 | [59_vol_momentum_composite.py](strategies/59_vol_momentum_composite.py) | 时序波动率与截面动量复合趋势策略 | 时序信号和截面收益率双重确认，按趋势强弱调整仓位 |
 | [60_cross_section_ml_ranking.py](strategies/60_cross_section_ml_ranking.py) | 截面多因子机器学习排名策略 | 用截面排名、多因子打分和机器学习思路筛选品种 |
 | [62_macro_factor_rotation.py](strategies/62_macro_factor_rotation.py) | 宏观因子轮转截面策略 | 宏观因子暴露打分驱动多品种轮转 |
+| [79_cross_section_risk_parity.py](strategies/79_cross_section_risk_parity.py) | 截面风险平价动量策略 | 跨品种比较风险调整后动量，偏向强趋势、低波动且流动性较好的合约 |
+| [80_momentum_carry_composite.py](strategies/80_momentum_carry_composite.py) | 动量 Carry 复合轮动策略 | 把时间序列动量和近似期限结构收益结合，筛选相对更强的品种 |
+| [81_term_structure_momentum_rotation.py](strategies/81_term_structure_momentum_rotation.py) | 期限结构动量轮动策略 | 用期限结构斜率代理库存预期，再与趋势动量共同决定多空轮动 |
+| [82_liquidity_adjusted_momentum.py](strategies/82_liquidity_adjusted_momentum.py) | 流动性调整动量策略 | 在动量排序中惩罚成交不足的合约，降低滑点和盘口冲击风险 |
+| [83_regime_switching_allocation.py](strategies/83_regime_switching_allocation.py) | 行情状态切换配置策略 | 先判断趋势/震荡状态，再在不同状态下调整动量和波动权重 |
+| [91_volatility_target_position.py](strategies/91_volatility_target_position.py) | 波动率目标仓位策略 | 用风险预算约束目标手数，高波动时自动降仓、低波动趋势中适度增仓 |
+| [93_adaptive_position_sizing.py](strategies/93_adaptive_position_sizing.py) | 自适应仓位 sizing 策略 | 综合趋势效率、波动目标和行情状态动态调整目标持仓规模 |
 
 ### 对冲套利与结构交易类
 
@@ -204,6 +229,11 @@ api = TqApi(
 | [53_market_maker_hedge.py](strategies/53_market_maker_hedge.py) | 跨品种做市商对冲策略 | 多品种挂单获取价差，并用相关品种对冲方向风险 |
 | [61_statistical_arbitrage.py](strategies/61_statistical_arbitrage.py) | 统计套利跨品种对冲策略 | 协整检验 + Z-Score 均值回归，构建配对对冲 |
 | [63_cross_industry_chain_hedge.py](strategies/63_cross_industry_chain_hedge.py) | 跨品种产业链对冲轮转策略 | 围绕产业链利润偏离进行配对对冲 |
+| [84_calendar_spread_momentum.py](strategies/84_calendar_spread_momentum.py) | 跨期价差动量策略 | 跟踪近远月价差方向，价差持续扩张时顺势做跨期组合 |
+| [85_crack_spread_monitor.py](strategies/85_crack_spread_monitor.py) | 裂解价差监控对冲策略 | 观察原油与燃料油价差变化，价差极端偏离时做相对价值对冲 |
+| [86_intercommodity_ratio_reversion.py](strategies/86_intercommodity_ratio_reversion.py) | 跨品种比价回归策略 | 用豆粕/豆油比价衡量产业链相对定价，偏离历史区间后做回归 |
+| [87_pairs_beta_neutral.py](strategies/87_pairs_beta_neutral.py) | Beta 中性配对交易策略 | 用滚动 Beta 调整配对合约敞口，在残差偏离时构建中性对冲 |
+| [88_cointegration_residual_breakout.py](strategies/88_cointegration_residual_breakout.py) | 协整残差突破策略 | 把残差看作可交易状态，当残差突破长期区间时顺势持有价差 |
 
 ---
 
