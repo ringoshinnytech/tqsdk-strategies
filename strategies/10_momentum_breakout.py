@@ -122,120 +122,125 @@ DATA_LENGTH = 300                # K线数量（需 > MOMENTUM_N + FILTER_N）
 # ============================================================
 # 初始化 TqApi
 # ============================================================
-api = TqApi(
-    account=TqSim(),
-    auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD")
-)
+def main():
+    api = TqApi(
+        account=TqSim(),
+        auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD")
+    )
 
-# 订阅K线数据
-klines = api.get_kline_serial(SYMBOL, KLINE_DURATION, data_length=DATA_LENGTH)
+    # 订阅K线数据
+    klines = api.get_kline_serial(SYMBOL, KLINE_DURATION, data_length=DATA_LENGTH)
 
-# 订阅实时报价
-quote = api.get_quote(SYMBOL)
+    # 订阅实时报价
+    quote = api.get_quote(SYMBOL)
 
-print(f"[动量策略] 启动成功，交易品种：{SYMBOL}，K线周期：{KLINE_DURATION}秒")
-print(f"[动量策略] 参数：动量周期={MOMENTUM_N}，开仓阈值={THRESHOLD}%，"
-      f"平仓阈值={EXIT_THRESHOLD}%，均线过滤={'开启' if USE_MA_FILTER else '关闭'}")
+    print(f"[动量策略] 启动成功，交易品种：{SYMBOL}，K线周期：{KLINE_DURATION}秒")
+    print(f"[动量策略] 参数：动量周期={MOMENTUM_N}，开仓阈值={THRESHOLD}%，"
+          f"平仓阈值={EXIT_THRESHOLD}%，均线过滤={'开启' if USE_MA_FILTER else '关闭'}")
 
-# ============================================================
-# 主循环：等待K线更新并计算动量信号
-# ============================================================
-try:
-    # TargetPosTask：只需声明目标仓位，自动处理追单/撤单/部分成交
-    target_pos = TargetPosTask(api, SYMBOL)
+    # ============================================================
+    # 主循环：等待K线更新并计算动量信号
+    # ============================================================
+    try:
+        # TargetPosTask：只需声明目标仓位，自动处理追单/撤单/部分成交
+        target_pos = TargetPosTask(api, SYMBOL)
 
-    while True:
-        api.wait_update()  # 等待行情更新
+        while True:
+            api.wait_update()  # 等待行情更新
 
-        if api.is_changing(klines):
+            if api.is_changing(klines):
 
-            close = klines["close"]  # 收盘价序列
+                close = klines["close"]  # 收盘价序列
 
-            # ---- 计算价格动量 ----
-            # 取最近完成K线（-2）和N根前的K线（-2-MOMENTUM_N）
-            # 动量 = (当前价 - N根前价) / N根前价 × 100%
-            close_cur = close.iloc[-2]                    # 当前收盘价
-            close_n_ago = close.iloc[-2 - MOMENTUM_N]    # N根K线前的收盘价
+                # ---- 计算价格动量 ----
+                # 取最近完成K线（-2）和N根前的K线（-2-MOMENTUM_N）
+                # 动量 = (当前价 - N根前价) / N根前价 × 100%
+                close_cur = close.iloc[-2]                    # 当前收盘价
+                close_n_ago = close.iloc[-2 - MOMENTUM_N]    # N根K线前的收盘价
 
-            # 防止除以零（理论上不会发生）
-            if close_n_ago == 0:
-                continue
-
-            # 计算动量百分比
-            momentum = (close_cur - close_n_ago) / close_n_ago * 100.0
-
-            # ---- 均线过滤 ----
-            ma_filter = ma(close, FILTER_N)
-            ma_cur = ma_filter.iloc[-2]  # 当前均线值
-
-            # 判断价格是否在均线之上/之下
-            price_above_ma = close_cur > ma_cur   # 价格在均线上方（多头环境）
-            price_below_ma = close_cur < ma_cur   # 价格在均线下方（空头环境）
-
-            # 打印状态信息
-            print(
-                f"[{klines['datetime'].iloc[-2]}] "
-                f"当前价={close_cur:.2f}，{MOMENTUM_N}周期前={close_n_ago:.2f}，"
-                f"动量={momentum:.2f}%，MA({FILTER_N})={ma_cur:.2f}"
-            )
-
-            # ---- 查询持仓状态 ----
-            position = api.get_position(SYMBOL)
-            volume_long = position.volume_long
-            volume_short = position.volume_short
-
-            # ---- 平仓逻辑（优先执行）----
-
-            # 持多仓时：若动量回归至平仓阈值以下，或动量变负，平多仓
-            if volume_long > 0:
-                if momentum < EXIT_THRESHOLD:
-                    target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
-                    print(f"[动量策略] 多仓平仓：动量回落至{momentum:.2f}%，平多{volume_long}手")
-                    continue  # 本次K线处理完毕，等待下根K线
-
-            # 持空仓时：若动量回归至平仓阈值以上，或动量变正，平空仓
-            if volume_short > 0:
-                if momentum > -EXIT_THRESHOLD:
-                    target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
-                    print(f"[动量策略] 空仓平仓：动量回升至{momentum:.2f}%，平空{volume_short}手")
+                # 防止除以零（理论上不会发生）
+                if close_n_ago == 0:
                     continue
 
-            # ---- 开仓逻辑 ----
+                # 计算动量百分比
+                momentum = (close_cur - close_n_ago) / close_n_ago * 100.0
 
-            # 判断是否满足均线过滤条件
-            can_go_long = (not USE_MA_FILTER) or price_above_ma    # 多头过滤
-            can_go_short = (not USE_MA_FILTER) or price_below_ma   # 空头过滤
+                # ---- 均线过滤 ----
+                ma_filter = ma(close, FILTER_N)
+                ma_cur = ma_filter.iloc[-2]  # 当前均线值
 
-            # 【开多信号】正动量超过阈值（强势上涨动能）且满足均线过滤
-            if momentum > THRESHOLD and can_go_long and volume_long == 0:
-                # 如有空仓先平
-                if volume_short > 0:
-                    target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
-                    print(f"[动量策略] 动量开多前平空：{volume_short}手")
+                # 判断价格是否在均线之上/之下
+                price_above_ma = close_cur > ma_cur   # 价格在均线上方（多头环境）
+                price_below_ma = close_cur < ma_cur   # 价格在均线下方（空头环境）
 
-                # 开多仓
-                target_pos.set_target_volume(VOLUME)   # 做多：TargetPosTask自动追单到目标仓位
+                # 打印状态信息
                 print(
-                    f"[动量策略] 开多：动量={momentum:.2f}%>{THRESHOLD}%，"
-                    f"价格={close_cur:.2f}，均线={ma_cur:.2f}，开{VOLUME}手"
+                    f"[{klines['datetime'].iloc[-2]}] "
+                    f"当前价={close_cur:.2f}，{MOMENTUM_N}周期前={close_n_ago:.2f}，"
+                    f"动量={momentum:.2f}%，MA({FILTER_N})={ma_cur:.2f}"
                 )
 
-            # 【开空信号】负动量超过阈值（强势下跌动能）且满足均线过滤
-            elif momentum < -THRESHOLD and can_go_short and volume_short == 0:
-                # 如有多仓先平
+                # ---- 查询持仓状态 ----
+                position = api.get_position(SYMBOL)
+                volume_long = position.volume_long
+                volume_short = position.volume_short
+
+                # ---- 平仓逻辑（优先执行）----
+
+                # 持多仓时：若动量回归至平仓阈值以下，或动量变负，平多仓
                 if volume_long > 0:
-                    target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
-                    print(f"[动量策略] 动量开空前平多：{volume_long}手")
+                    if momentum < EXIT_THRESHOLD:
+                        target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
+                        print(f"[动量策略] 多仓平仓：动量回落至{momentum:.2f}%，平多{volume_long}手")
+                        continue  # 本次K线处理完毕，等待下根K线
 
-                # 开空仓
-                target_pos.set_target_volume(-VOLUME)  # 做空：TargetPosTask自动追单到目标仓位
-                print(
-                    f"[动量策略] 开空：动量={momentum:.2f}%<-{THRESHOLD}%，"
-                    f"价格={close_cur:.2f}，均线={ma_cur:.2f}，开{VOLUME}手"
-                )
+                # 持空仓时：若动量回归至平仓阈值以上，或动量变正，平空仓
+                if volume_short > 0:
+                    if momentum > -EXIT_THRESHOLD:
+                        target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
+                        print(f"[动量策略] 空仓平仓：动量回升至{momentum:.2f}%，平空{volume_short}手")
+                        continue
 
-except KeyboardInterrupt:
-    print("[动量策略] 用户中断，策略停止运行")
-finally:
-    api.close()
-    print("[动量策略] API连接已关闭")
+                # ---- 开仓逻辑 ----
+
+                # 判断是否满足均线过滤条件
+                can_go_long = (not USE_MA_FILTER) or price_above_ma    # 多头过滤
+                can_go_short = (not USE_MA_FILTER) or price_below_ma   # 空头过滤
+
+                # 【开多信号】正动量超过阈值（强势上涨动能）且满足均线过滤
+                if momentum > THRESHOLD and can_go_long and volume_long == 0:
+                    # 如有空仓先平
+                    if volume_short > 0:
+                        target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
+                        print(f"[动量策略] 动量开多前平空：{volume_short}手")
+
+                    # 开多仓
+                    target_pos.set_target_volume(VOLUME)   # 做多：TargetPosTask自动追单到目标仓位
+                    print(
+                        f"[动量策略] 开多：动量={momentum:.2f}%>{THRESHOLD}%，"
+                        f"价格={close_cur:.2f}，均线={ma_cur:.2f}，开{VOLUME}手"
+                    )
+
+                # 【开空信号】负动量超过阈值（强势下跌动能）且满足均线过滤
+                elif momentum < -THRESHOLD and can_go_short and volume_short == 0:
+                    # 如有多仓先平
+                    if volume_long > 0:
+                        target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
+                        print(f"[动量策略] 动量开空前平多：{volume_long}手")
+
+                    # 开空仓
+                    target_pos.set_target_volume(-VOLUME)  # 做空：TargetPosTask自动追单到目标仓位
+                    print(
+                        f"[动量策略] 开空：动量={momentum:.2f}%<-{THRESHOLD}%，"
+                        f"价格={close_cur:.2f}，均线={ma_cur:.2f}，开{VOLUME}手"
+                    )
+
+    except KeyboardInterrupt:
+        print("[动量策略] 用户中断，策略停止运行")
+    finally:
+        api.close()
+        print("[动量策略] API连接已关闭")
+
+
+if __name__ == "__main__":
+    main()

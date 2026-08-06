@@ -134,140 +134,145 @@ DATA_LENGTH = 150                # 获取K线数量
 # ============================================================
 # 初始化 TqApi
 # ============================================================
-api = TqApi(
-    account=TqSim(),
-    auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD")
-)
+def main():
+    api = TqApi(
+        account=TqSim(),
+        auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD")
+    )
 
-# 订阅K线数据
-klines = api.get_kline_serial(SYMBOL, KLINE_DURATION, data_length=DATA_LENGTH)
+    # 订阅K线数据
+    klines = api.get_kline_serial(SYMBOL, KLINE_DURATION, data_length=DATA_LENGTH)
 
-# 订阅实时报价
-quote = api.get_quote(SYMBOL)
+    # 订阅实时报价
+    quote = api.get_quote(SYMBOL)
 
-# 初始化 TargetPosTask，自动管理持仓目标（自动处理追单/撤单/部分成交）
-target_pos = TargetPosTask(api, SYMBOL)
+    # 初始化 TargetPosTask，自动管理持仓目标（自动处理追单/撤单/部分成交）
+    target_pos = TargetPosTask(api, SYMBOL)
 
-print(f"[量价策略] 启动成功，交易品种：{SYMBOL}，K线周期：{KLINE_DURATION}秒")
-print(
-    f"[量价策略] 参数：突破周期={BREAKOUT_N}，平仓周期={EXIT_N}，"
-    f"量线周期={VOL_MA_N}，放量倍数={VOL_MULTIPLIER}"
-)
+    print(f"[量价策略] 启动成功，交易品种：{SYMBOL}，K线周期：{KLINE_DURATION}秒")
+    print(
+        f"[量价策略] 参数：突破周期={BREAKOUT_N}，平仓周期={EXIT_N}，"
+        f"量线周期={VOL_MA_N}，放量倍数={VOL_MULTIPLIER}"
+    )
 
-# ============================================================
-# 主循环：等待K线更新并计算量价信号
-# ============================================================
-try:
-    while True:
-        api.wait_update()
+    # ============================================================
+    # 主循环：等待K线更新并计算量价信号
+    # ============================================================
+    try:
+        while True:
+            api.wait_update()
 
-        if api.is_changing(klines):
+            if api.is_changing(klines):
 
-            close = klines["close"]    # 收盘价序列
-            volume = klines["volume"]  # 成交量序列
-            high = klines["high"]      # 最高价序列
-            low = klines["low"]        # 最低价序列
+                close = klines["close"]    # 收盘价序列
+                volume = klines["volume"]  # 成交量序列
+                high = klines["high"]      # 最高价序列
+                low = klines["low"]        # 最低价序列
 
-            # ---- 计算价格通道 ----
-            # 突破通道：用于开仓判断
-            # 注意：为避免当前K线影响，用 .iloc[-3:] 之前的区间判断突破
-            # 实现：取前N根K线（不含当前K线-2）的高低极值
-            # tafunc的hhv/llv包含当前点，我们用N+1期并取前一根的值
-            channel_high_n = hhv(close, BREAKOUT_N)   # N期收盘价最高（含当前点）
-            channel_low_n = llv(close, BREAKOUT_N)    # N期收盘价最低
+                # ---- 计算价格通道 ----
+                # 突破通道：用于开仓判断
+                # 注意：为避免当前K线影响，用 .iloc[-3:] 之前的区间判断突破
+                # 实现：取前N根K线（不含当前K线-2）的高低极值
+                # tafunc的hhv/llv包含当前点，我们用N+1期并取前一根的值
+                channel_high_n = hhv(close, BREAKOUT_N)   # N期收盘价最高（含当前点）
+                channel_low_n = llv(close, BREAKOUT_N)    # N期收盘价最低
 
-            # 平仓通道：用于平仓判断（更短周期，更灵敏）
-            channel_high_exit = hhv(high, EXIT_N)
-            channel_low_exit = llv(low, EXIT_N)
+                # 平仓通道：用于平仓判断（更短周期，更灵敏）
+                channel_high_exit = hhv(high, EXIT_N)
+                channel_low_exit = llv(low, EXIT_N)
 
-            # ---- 计算成交量指标 ----
-            vol_ma = ma(volume, VOL_MA_N)  # 成交量均线
+                # ---- 计算成交量指标 ----
+                vol_ma = ma(volume, VOL_MA_N)  # 成交量均线
 
-            # 取最新完成K线的数据（-2为当前完成K线）
-            close_cur = close.iloc[-2]            # 当前收盘价
-            close_prev = close.iloc[-3]           # 前一收盘价
+                # 取最新完成K线的数据（-2为当前完成K线）
+                close_cur = close.iloc[-2]            # 当前收盘价
+                close_prev = close.iloc[-3]           # 前一收盘价
 
-            # 突破基准：用前N根K线（不含当前K线）的极值，即 index -3 位置的通道值
-            # 这样可以判断当前K线是否突破了前N期极值
-            prev_channel_high = channel_high_n.iloc[-3]  # 前N期最高价（不含当前）
-            prev_channel_low = channel_low_n.iloc[-3]    # 前N期最低价（不含当前）
+                # 突破基准：用前N根K线（不含当前K线）的极值，即 index -3 位置的通道值
+                # 这样可以判断当前K线是否突破了前N期极值
+                prev_channel_high = channel_high_n.iloc[-3]  # 前N期最高价（不含当前）
+                prev_channel_low = channel_low_n.iloc[-3]    # 前N期最低价（不含当前）
 
-            # 当前K线成交量
-            vol_cur = volume.iloc[-2]
-            vol_ma_cur = vol_ma.iloc[-2]           # 当前成交量均线
+                # 当前K线成交量
+                vol_cur = volume.iloc[-2]
+                vol_ma_cur = vol_ma.iloc[-2]           # 当前成交量均线
 
-            # 计算成交量倍数（放量比例）
-            if vol_ma_cur > 0:
-                vol_ratio = vol_cur / vol_ma_cur  # 当前量/均量
-            else:
-                vol_ratio = 0
+                # 计算成交量倍数（放量比例）
+                if vol_ma_cur > 0:
+                    vol_ratio = vol_cur / vol_ma_cur  # 当前量/均量
+                else:
+                    vol_ratio = 0
 
-            # 平仓通道值（当前）
-            exit_high = channel_high_exit.iloc[-2]  # EXIT_N期最高价
-            exit_low = channel_low_exit.iloc[-2]    # EXIT_N期最低价
+                # 平仓通道值（当前）
+                exit_high = channel_high_exit.iloc[-2]  # EXIT_N期最高价
+                exit_low = channel_low_exit.iloc[-2]    # EXIT_N期最低价
 
-            # 打印状态
-            print(
-                f"[{klines['datetime'].iloc[-2]}] "
-                f"收盘={close_cur:.2f}，前{BREAKOUT_N}期高={prev_channel_high:.2f}，"
-                f"低={prev_channel_low:.2f}，量比={vol_ratio:.2f}x"
-            )
-
-            # ---- 量价双重确认——判断是否放量（成交量倍数超过阈值）----
-            is_big_volume = vol_ratio >= VOL_MULTIPLIER
-
-            # ---- 平仓逻辑（优先）----
-
-            # 持多仓：价格回落到EXIT_N期低点（短期低点），说明趋势减弱，平多
-            # 持空仓：价格反弹至EXIT_N期高点，说明空头趋势减弱，平空
-            # 注意：TargetPosTask 内部会读取当前持仓，无需手动查询 position
-            if close_cur < exit_low:
-                target_pos.set_target_volume(0)
+                # 打印状态
                 print(
-                    f"[量价策略] 平多仓：价格{close_cur:.2f} < "
-                    f"{EXIT_N}期低点{exit_low:.2f}，平仓"
-                )
-            elif close_cur > exit_high:
-                target_pos.set_target_volume(0)
-                print(
-                    f"[量价策略] 平空仓：价格{close_cur:.2f} > "
-                    f"{EXIT_N}期高点{exit_high:.2f}，平仓"
+                    f"[{klines['datetime'].iloc[-2]}] "
+                    f"收盘={close_cur:.2f}，前{BREAKOUT_N}期高={prev_channel_high:.2f}，"
+                    f"低={prev_channel_low:.2f}，量比={vol_ratio:.2f}x"
                 )
 
-            # ---- 开仓逻辑 ----
+                # ---- 量价双重确认——判断是否放量（成交量倍数超过阈值）----
+                is_big_volume = vol_ratio >= VOL_MULTIPLIER
 
-            # 【开多信号】价格突破前N期收盘价高点 + 成交量放大
-            elif (close_cur > prev_channel_high     # 价格突破N期最高价
-                    and is_big_volume):             # 成交量放大确认
+                # ---- 平仓逻辑（优先）----
 
-                target_pos.set_target_volume(VOLUME)
-                print(
-                    f"[量价策略] 量价多头开多！"
-                    f"价格={close_cur:.2f}>{prev_channel_high:.2f}，"
-                    f"量比={vol_ratio:.2f}x，目标{VOLUME}手"
-                )
-
-            # 【开空信号】价格跌破前N期收盘价低点 + 成交量放大
-            elif (close_cur < prev_channel_low    # 价格突破N期最低价
-                      and is_big_volume):         # 成交量放大确认
-
-                target_pos.set_target_volume(-VOLUME)
-                print(
-                    f"[量价策略] 量价空头开空！"
-                    f"价格={close_cur:.2f}<{prev_channel_low:.2f}，"
-                    f"量比={vol_ratio:.2f}x，目标{-VOLUME}手"
-                )
-
-            else:
-                # 未触发信号的情况下，记录量价状态
-                if not is_big_volume and (close_cur > prev_channel_high or close_cur < prev_channel_low):
+                # 持多仓：价格回落到EXIT_N期低点（短期低点），说明趋势减弱，平多
+                # 持空仓：价格反弹至EXIT_N期高点，说明空头趋势减弱，平空
+                # 注意：TargetPosTask 内部会读取当前持仓，无需手动查询 position
+                if close_cur < exit_low:
+                    target_pos.set_target_volume(0)
                     print(
-                        f"[量价策略] 价格突破但量能不足（量比={vol_ratio:.2f}x"
-                        f"<{VOL_MULTIPLIER}x），忽略信号（避免假突破）"
+                        f"[量价策略] 平多仓：价格{close_cur:.2f} < "
+                        f"{EXIT_N}期低点{exit_low:.2f}，平仓"
+                    )
+                elif close_cur > exit_high:
+                    target_pos.set_target_volume(0)
+                    print(
+                        f"[量价策略] 平空仓：价格{close_cur:.2f} > "
+                        f"{EXIT_N}期高点{exit_high:.2f}，平仓"
                     )
 
-except KeyboardInterrupt:
-    print("[量价策略] 用户中断，策略停止运行")
-finally:
-    api.close()
-    print("[量价策略] API连接已关闭")
+                # ---- 开仓逻辑 ----
+
+                # 【开多信号】价格突破前N期收盘价高点 + 成交量放大
+                elif (close_cur > prev_channel_high     # 价格突破N期最高价
+                        and is_big_volume):             # 成交量放大确认
+
+                    target_pos.set_target_volume(VOLUME)
+                    print(
+                        f"[量价策略] 量价多头开多！"
+                        f"价格={close_cur:.2f}>{prev_channel_high:.2f}，"
+                        f"量比={vol_ratio:.2f}x，目标{VOLUME}手"
+                    )
+
+                # 【开空信号】价格跌破前N期收盘价低点 + 成交量放大
+                elif (close_cur < prev_channel_low    # 价格突破N期最低价
+                          and is_big_volume):         # 成交量放大确认
+
+                    target_pos.set_target_volume(-VOLUME)
+                    print(
+                        f"[量价策略] 量价空头开空！"
+                        f"价格={close_cur:.2f}<{prev_channel_low:.2f}，"
+                        f"量比={vol_ratio:.2f}x，目标{-VOLUME}手"
+                    )
+
+                else:
+                    # 未触发信号的情况下，记录量价状态
+                    if not is_big_volume and (close_cur > prev_channel_high or close_cur < prev_channel_low):
+                        print(
+                            f"[量价策略] 价格突破但量能不足（量比={vol_ratio:.2f}x"
+                            f"<{VOL_MULTIPLIER}x），忽略信号（避免假突破）"
+                        )
+
+    except KeyboardInterrupt:
+        print("[量价策略] 用户中断，策略停止运行")
+    finally:
+        api.close()
+        print("[量价策略] API连接已关闭")
+
+
+if __name__ == "__main__":
+    main()
