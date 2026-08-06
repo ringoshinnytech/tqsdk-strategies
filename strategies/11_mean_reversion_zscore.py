@@ -123,133 +123,138 @@ DATA_LENGTH = 300                # 获取K线数量
 # ============================================================
 # 初始化 TqApi
 # ============================================================
-api = TqApi(
-    account=TqSim(),
-    auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD")
-)
+def main():
+    api = TqApi(
+        account=TqSim(),
+        auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD")
+    )
 
-# 订阅K线数据
-klines = api.get_kline_serial(SYMBOL, KLINE_DURATION, data_length=DATA_LENGTH)
+    # 订阅K线数据
+    klines = api.get_kline_serial(SYMBOL, KLINE_DURATION, data_length=DATA_LENGTH)
 
-# 订阅实时报价
-quote = api.get_quote(SYMBOL)
+    # 订阅实时报价
+    quote = api.get_quote(SYMBOL)
 
-print(f"[Z-Score策略] 启动成功，交易品种：{SYMBOL}，K线周期：{KLINE_DURATION}秒")
-print(f"[Z-Score策略] 参数：回望N={ZSCORE_N}，开仓Z={ENTRY_Z}，平仓Z={EXIT_Z}，最大持仓={MAX_HOLD_BARS}根")
+    print(f"[Z-Score策略] 启动成功，交易品种：{SYMBOL}，K线周期：{KLINE_DURATION}秒")
+    print(f"[Z-Score策略] 参数：回望N={ZSCORE_N}，开仓Z={ENTRY_Z}，平仓Z={EXIT_Z}，最大持仓={MAX_HOLD_BARS}根")
 
-# 持仓计时器（记录当前持仓已持有多少根K线）
-hold_bars_count = 0           # 已持仓K线数
-last_signal_bar_index = -1   # 上次开仓时的K线索引（用于计算持仓时长）
+    # 持仓计时器（记录当前持仓已持有多少根K线）
+    hold_bars_count = 0           # 已持仓K线数
+    last_signal_bar_index = -1   # 上次开仓时的K线索引（用于计算持仓时长）
 
-# ============================================================
-# 主循环
-# ============================================================
-try:
-    # TargetPosTask：只需声明目标仓位，自动处理追单/撤单/部分成交
-    target_pos = TargetPosTask(api, SYMBOL)
+    # ============================================================
+    # 主循环
+    # ============================================================
+    try:
+        # TargetPosTask：只需声明目标仓位，自动处理追单/撤单/部分成交
+        target_pos = TargetPosTask(api, SYMBOL)
 
-    while True:
-        api.wait_update()
+        while True:
+            api.wait_update()
 
-        if api.is_changing(klines):
+            if api.is_changing(klines):
 
-            close = klines["close"]  # 收盘价序列
+                close = klines["close"]  # 收盘价序列
 
-            # ---- 计算Z-Score指标 ----
-            # N期均值
-            mean_n = ma(close, ZSCORE_N)
+                # ---- 计算Z-Score指标 ----
+                # N期均值
+                mean_n = ma(close, ZSCORE_N)
 
-            # N期标准差（ddof=0，总体标准差，与tafunc.std一致）
-            std_n = std(close, ZSCORE_N)
+                # N期标准差（ddof=0，总体标准差，与tafunc.std一致）
+                std_n = std(close, ZSCORE_N)
 
-            # 取最近完成K线的数据
-            close_cur = close.iloc[-2]
-            mean_cur = mean_n.iloc[-2]
-            std_cur = std_n.iloc[-2]
+                # 取最近完成K线的数据
+                close_cur = close.iloc[-2]
+                mean_cur = mean_n.iloc[-2]
+                std_cur = std_n.iloc[-2]
 
-            # 防止标准差为0（价格没有波动，无法计算Z-Score）
-            if std_cur == 0 or std_cur != std_cur:  # 检查0和NaN
-                print(f"[Z-Score策略] 标准差为0或NaN，跳过本次计算")
-                continue
-
-            # 计算Z-Score
-            zscore = (close_cur - mean_cur) / std_cur
-
-            # 打印状态
-            print(
-                f"[{klines['datetime'].iloc[-2]}] "
-                f"价格={close_cur:.2f}，均值={mean_cur:.2f}，"
-                f"标准差={std_cur:.2f}，Z-Score={zscore:.3f}"
-            )
-
-            # ---- 查询持仓 ----
-            position = api.get_position(SYMBOL)
-            volume_long = position.volume_long
-            volume_short = position.volume_short
-
-            # ---- 更新持仓计时器 ----
-            if volume_long > 0 or volume_short > 0:
-                hold_bars_count += 1  # 每根K线更新时增加计数
-            else:
-                hold_bars_count = 0   # 无持仓时重置计数
-
-            # ---- 平仓逻辑（优先于开仓）----
-
-            # 多仓平仓：Z-Score从负极值回归到-EXIT_Z以上，或超时平仓
-            if volume_long > 0:
-                should_close_long = (
-                    zscore > -EXIT_Z or              # Z-Score已回归到阈值以内
-                    hold_bars_count >= MAX_HOLD_BARS  # 持仓超时
-                )
-                if should_close_long:
-                    target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
-                    reason = "均值回归" if zscore > -EXIT_Z else "超时强制平仓"
-                    print(
-                        f"[Z-Score策略] 平多仓（{reason}）："
-                        f"Z-Score={zscore:.3f}，持仓={hold_bars_count}根K线，平{volume_long}手"
-                    )
-                    hold_bars_count = 0  # 平仓后重置计数
+                # 防止标准差为0（价格没有波动，无法计算Z-Score）
+                if std_cur == 0 or std_cur != std_cur:  # 检查0和NaN
+                    print(f"[Z-Score策略] 标准差为0或NaN，跳过本次计算")
                     continue
 
-            # 空仓平仓：Z-Score从正极值回归到+EXIT_Z以下，或超时平仓
-            if volume_short > 0:
-                should_close_short = (
-                    zscore < EXIT_Z or               # Z-Score已回归到阈值以内
-                    hold_bars_count >= MAX_HOLD_BARS  # 持仓超时
+                # 计算Z-Score
+                zscore = (close_cur - mean_cur) / std_cur
+
+                # 打印状态
+                print(
+                    f"[{klines['datetime'].iloc[-2]}] "
+                    f"价格={close_cur:.2f}，均值={mean_cur:.2f}，"
+                    f"标准差={std_cur:.2f}，Z-Score={zscore:.3f}"
                 )
-                if should_close_short:
-                    target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
-                    reason = "均值回归" if zscore < EXIT_Z else "超时强制平仓"
-                    print(
-                        f"[Z-Score策略] 平空仓（{reason}）："
-                        f"Z-Score={zscore:.3f}，持仓={hold_bars_count}根K线，平{volume_short}手"
+
+                # ---- 查询持仓 ----
+                position = api.get_position(SYMBOL)
+                volume_long = position.volume_long
+                volume_short = position.volume_short
+
+                # ---- 更新持仓计时器 ----
+                if volume_long > 0 or volume_short > 0:
+                    hold_bars_count += 1  # 每根K线更新时增加计数
+                else:
+                    hold_bars_count = 0   # 无持仓时重置计数
+
+                # ---- 平仓逻辑（优先于开仓）----
+
+                # 多仓平仓：Z-Score从负极值回归到-EXIT_Z以上，或超时平仓
+                if volume_long > 0:
+                    should_close_long = (
+                        zscore > -EXIT_Z or              # Z-Score已回归到阈值以内
+                        hold_bars_count >= MAX_HOLD_BARS  # 持仓超时
                     )
-                    hold_bars_count = 0
-                    continue
+                    if should_close_long:
+                        target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
+                        reason = "均值回归" if zscore > -EXIT_Z else "超时强制平仓"
+                        print(
+                            f"[Z-Score策略] 平多仓（{reason}）："
+                            f"Z-Score={zscore:.3f}，持仓={hold_bars_count}根K线，平{volume_long}手"
+                        )
+                        hold_bars_count = 0  # 平仓后重置计数
+                        continue
 
-            # ---- 开仓逻辑（无持仓时才开仓）----
-            if volume_long == 0 and volume_short == 0:
-
-                # 【开多信号】Z-Score < -ENTRY_Z，价格严重低于均值，预期回归，做多
-                if zscore < -ENTRY_Z:
-                    target_pos.set_target_volume(VOLUME)   # 做多：TargetPosTask自动追单到目标仓位
-                    hold_bars_count = 0  # 重置持仓计数
-                    print(
-                        f"[Z-Score策略] 开多（价格低于均值{abs(zscore):.2f}个标准差）："
-                        f"Z-Score={zscore:.3f}，价格={close_cur:.2f}，均值={mean_cur:.2f}"
+                # 空仓平仓：Z-Score从正极值回归到+EXIT_Z以下，或超时平仓
+                if volume_short > 0:
+                    should_close_short = (
+                        zscore < EXIT_Z or               # Z-Score已回归到阈值以内
+                        hold_bars_count >= MAX_HOLD_BARS  # 持仓超时
                     )
+                    if should_close_short:
+                        target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
+                        reason = "均值回归" if zscore < EXIT_Z else "超时强制平仓"
+                        print(
+                            f"[Z-Score策略] 平空仓（{reason}）："
+                            f"Z-Score={zscore:.3f}，持仓={hold_bars_count}根K线，平{volume_short}手"
+                        )
+                        hold_bars_count = 0
+                        continue
 
-                # 【开空信号】Z-Score > +ENTRY_Z，价格严重高于均值，预期回归，做空
-                elif zscore > ENTRY_Z:
-                    target_pos.set_target_volume(-VOLUME)  # 做空：TargetPosTask自动追单到目标仓位
-                    hold_bars_count = 0  # 重置持仓计数
-                    print(
-                        f"[Z-Score策略] 开空（价格高于均值{zscore:.2f}个标准差）："
-                        f"Z-Score={zscore:.3f}，价格={close_cur:.2f}，均值={mean_cur:.2f}"
-                    )
+                # ---- 开仓逻辑（无持仓时才开仓）----
+                if volume_long == 0 and volume_short == 0:
 
-except KeyboardInterrupt:
-    print("[Z-Score策略] 用户中断，策略停止运行")
-finally:
-    api.close()
-    print("[Z-Score策略] API连接已关闭")
+                    # 【开多信号】Z-Score < -ENTRY_Z，价格严重低于均值，预期回归，做多
+                    if zscore < -ENTRY_Z:
+                        target_pos.set_target_volume(VOLUME)   # 做多：TargetPosTask自动追单到目标仓位
+                        hold_bars_count = 0  # 重置持仓计数
+                        print(
+                            f"[Z-Score策略] 开多（价格低于均值{abs(zscore):.2f}个标准差）："
+                            f"Z-Score={zscore:.3f}，价格={close_cur:.2f}，均值={mean_cur:.2f}"
+                        )
+
+                    # 【开空信号】Z-Score > +ENTRY_Z，价格严重高于均值，预期回归，做空
+                    elif zscore > ENTRY_Z:
+                        target_pos.set_target_volume(-VOLUME)  # 做空：TargetPosTask自动追单到目标仓位
+                        hold_bars_count = 0  # 重置持仓计数
+                        print(
+                            f"[Z-Score策略] 开空（价格高于均值{zscore:.2f}个标准差）："
+                            f"Z-Score={zscore:.3f}，价格={close_cur:.2f}，均值={mean_cur:.2f}"
+                        )
+
+    except KeyboardInterrupt:
+        print("[Z-Score策略] 用户中断，策略停止运行")
+    finally:
+        api.close()
+        print("[Z-Score策略] API连接已关闭")
+
+
+if __name__ == "__main__":
+    main()

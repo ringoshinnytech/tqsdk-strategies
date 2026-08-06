@@ -113,166 +113,171 @@ DATA_LENGTH = 300                # 获取K线数量
 # ============================================================
 # 初始化 TqApi，使用模拟账户
 # ============================================================
-api = TqApi(
-    account=TqSim(),                                    # 模拟账户
-    auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD")       # 替换为真实账号
-)
+def main():
+    api = TqApi(
+        account=TqSim(),                                    # 模拟账户
+        auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD")       # 替换为真实账号
+    )
 
-# 订阅K线数据
-klines = api.get_kline_serial(SYMBOL, KLINE_DURATION, data_length=DATA_LENGTH)
+    # 订阅K线数据
+    klines = api.get_kline_serial(SYMBOL, KLINE_DURATION, data_length=DATA_LENGTH)
 
-# 订阅实时报价
-quote = api.get_quote(SYMBOL)
+    # 订阅实时报价
+    quote = api.get_quote(SYMBOL)
 
-print(f"[KDJ策略] 启动成功，交易品种：{SYMBOL}，K线周期：{KLINE_DURATION}秒")
-print(f"[KDJ策略] 参数：N={KDJ_N}，超买={OVERBUY}，超卖={OVERSELL}")
+    print(f"[KDJ策略] 启动成功，交易品种：{SYMBOL}，K线周期：{KLINE_DURATION}秒")
+    print(f"[KDJ策略] 参数：N={KDJ_N}，超买={OVERBUY}，超卖={OVERSELL}")
 
 
-def calc_kdj(klines, n=9, m1=3, m2=3):
-    """
-    手动计算KDJ指标
+    def calc_kdj(klines, n=9, m1=3, m2=3):
+        """
+        手动计算KDJ指标
     
-    由于tafunc没有直接提供KDJ函数，需要自行实现
-    采用指数平滑迭代法计算K、D、J值
+        由于tafunc没有直接提供KDJ函数，需要自行实现
+        采用指数平滑迭代法计算K、D、J值
     
-    参数：
-        klines: K线数据DataFrame
-        n: RSV计算周期
-        m1: K值平滑参数
-        m2: D值平滑参数
+        参数：
+            klines: K线数据DataFrame
+            n: RSV计算周期
+            m1: K值平滑参数
+            m2: D值平滑参数
     
-    返回：
-        K, D, J 三个pandas Series
-    """
-    high = klines["high"]    # 最高价序列
-    low = klines["low"]      # 最低价序列
-    close = klines["close"]  # 收盘价序列
+        返回：
+            K, D, J 三个pandas Series
+        """
+        high = klines["high"]    # 最高价序列
+        low = klines["low"]      # 最低价序列
+        close = klines["close"]  # 收盘价序列
 
-    # 计算N周期最高价和最低价
-    hh = hhv(high, n)   # N周期最高价（rolling max）
-    ll = llv(low, n)    # N周期最低价（rolling min）
+        # 计算N周期最高价和最低价
+        hh = hhv(high, n)   # N周期最高价（rolling max）
+        ll = llv(low, n)    # N周期最低价（rolling min）
 
-    # 计算RSV（原始随机值），避免除以零
-    denominator = hh - ll
-    denominator = denominator.replace(0, 1)  # 分母为0时替换为1，防止除零错误
-    rsv = (close - ll) / denominator * 100   # RSV值在0-100之间
+        # 计算RSV（原始随机值），避免除以零
+        denominator = hh - ll
+        denominator = denominator.replace(0, 1)  # 分母为0时替换为1，防止除零错误
+        rsv = (close - ll) / denominator * 100   # RSV值在0-100之间
 
-    # 使用指数平滑迭代计算K值
-    # K_n = (1 - 1/m1) * K_{n-1} + (1/m1) * RSV_n
-    # 等价于：K_n = K_{n-1} * (2/3) + RSV_n * (1/3)（当m1=3时）
-    k_values = []
-    k_prev = 50.0  # K值初始值设为50（中性值）
+        # 使用指数平滑迭代计算K值
+        # K_n = (1 - 1/m1) * K_{n-1} + (1/m1) * RSV_n
+        # 等价于：K_n = K_{n-1} * (2/3) + RSV_n * (1/3)（当m1=3时）
+        k_values = []
+        k_prev = 50.0  # K值初始值设为50（中性值）
     
-    for rsv_val in rsv:
-        if np.isnan(rsv_val):
-            k_values.append(np.nan)
-        else:
-            k_cur = k_prev * (1 - 1.0/m1) + rsv_val * (1.0/m1)
-            k_values.append(k_cur)
-            k_prev = k_cur
+        for rsv_val in rsv:
+            if np.isnan(rsv_val):
+                k_values.append(np.nan)
+            else:
+                k_cur = k_prev * (1 - 1.0/m1) + rsv_val * (1.0/m1)
+                k_values.append(k_cur)
+                k_prev = k_cur
 
-    import pandas as pd
-    k_series = pd.Series(k_values, index=close.index)
+        import pandas as pd
+        k_series = pd.Series(k_values, index=close.index)
 
-    # 使用指数平滑迭代计算D值
-    # D_n = (1 - 1/m2) * D_{n-1} + (1/m2) * K_n
-    d_values = []
-    d_prev = 50.0  # D值初始值设为50
+        # 使用指数平滑迭代计算D值
+        # D_n = (1 - 1/m2) * D_{n-1} + (1/m2) * K_n
+        d_values = []
+        d_prev = 50.0  # D值初始值设为50
     
-    for k_val in k_series:
-        if np.isnan(k_val):
-            d_values.append(np.nan)
-        else:
-            d_cur = d_prev * (1 - 1.0/m2) + k_val * (1.0/m2)
-            d_values.append(d_cur)
-            d_prev = d_cur
+        for k_val in k_series:
+            if np.isnan(k_val):
+                d_values.append(np.nan)
+            else:
+                d_cur = d_prev * (1 - 1.0/m2) + k_val * (1.0/m2)
+                d_values.append(d_cur)
+                d_prev = d_cur
 
-    d_series = pd.Series(d_values, index=close.index)
+        d_series = pd.Series(d_values, index=close.index)
 
-    # J线 = 3 * K - 2 * D（J线波动幅度大于K、D，超前性强）
-    j_series = 3 * k_series - 2 * d_series
+        # J线 = 3 * K - 2 * D（J线波动幅度大于K、D，超前性强）
+        j_series = 3 * k_series - 2 * d_series
 
-    return k_series, d_series, j_series
+        return k_series, d_series, j_series
 
 
-# ============================================================
-# 主循环：等待K线更新并计算KDJ信号
-# ============================================================
-try:
-    # TargetPosTask：只需声明目标仓位，自动处理追单/撤单/部分成交
-    target_pos = TargetPosTask(api, SYMBOL)
+    # ============================================================
+    # 主循环：等待K线更新并计算KDJ信号
+    # ============================================================
+    try:
+        # TargetPosTask：只需声明目标仓位，自动处理追单/撤单/部分成交
+        target_pos = TargetPosTask(api, SYMBOL)
 
-    while True:
-        api.wait_update()  # 阻塞等待行情更新
+        while True:
+            api.wait_update()  # 阻塞等待行情更新
 
-        # 仅在K线数据更新时处理
-        if api.is_changing(klines):
+            # 仅在K线数据更新时处理
+            if api.is_changing(klines):
 
-            # ---- 计算KDJ指标 ----
-            k, d, j = calc_kdj(klines, n=KDJ_N, m1=KDJ_M1, m2=KDJ_M2)
+                # ---- 计算KDJ指标 ----
+                k, d, j = calc_kdj(klines, n=KDJ_N, m1=KDJ_M1, m2=KDJ_M2)
 
-            # 取最近两根已完成的K线的KDJ值（-2为最近完成K线，-3为再前一根）
-            k_cur = k.iloc[-2]     # 当前K值
-            d_cur = d.iloc[-2]     # 当前D值
-            j_cur = j.iloc[-2]     # 当前J值
-            k_prev = k.iloc[-3]    # 前一K值（用于检测金叉死叉）
-            d_prev = d.iloc[-3]    # 前一D值
+                # 取最近两根已完成的K线的KDJ值（-2为最近完成K线，-3为再前一根）
+                k_cur = k.iloc[-2]     # 当前K值
+                d_cur = d.iloc[-2]     # 当前D值
+                j_cur = j.iloc[-2]     # 当前J值
+                k_prev = k.iloc[-3]    # 前一K值（用于检测金叉死叉）
+                d_prev = d.iloc[-3]    # 前一D值
 
-            # 打印指标状态（调试用）
-            print(
-                f"[{klines['datetime'].iloc[-2]}] "
-                f"K={k_cur:.2f}, D={d_cur:.2f}, J={j_cur:.2f}"
-            )
+                # 打印指标状态（调试用）
+                print(
+                    f"[{klines['datetime'].iloc[-2]}] "
+                    f"K={k_cur:.2f}, D={d_cur:.2f}, J={j_cur:.2f}"
+                )
 
-            # ---- 检测金叉/死叉信号 ----
-            # 金叉：前一K < 前一D，当前K > 当前D（K线从下穿越D线）
-            golden_cross = (k_prev < d_prev) and (k_cur > d_cur)
-            # 死叉：前一K > 前一D，当前K < 当前D（K线从上穿越D线）
-            death_cross = (k_prev > d_prev) and (k_cur < d_cur)
+                # ---- 检测金叉/死叉信号 ----
+                # 金叉：前一K < 前一D，当前K > 当前D（K线从下穿越D线）
+                golden_cross = (k_prev < d_prev) and (k_cur > d_cur)
+                # 死叉：前一K > 前一D，当前K < 当前D（K线从上穿越D线）
+                death_cross = (k_prev > d_prev) and (k_cur < d_cur)
 
-            # ---- 查询当前持仓 ----
-            position = api.get_position(SYMBOL)
-            volume_long = position.volume_long
-            volume_short = position.volume_short
+                # ---- 查询当前持仓 ----
+                position = api.get_position(SYMBOL)
+                volume_long = position.volume_long
+                volume_short = position.volume_short
 
-            # ---- 执行交易逻辑 ----
+                # ---- 执行交易逻辑 ----
 
-            # 【开多条件】金叉信号 + KDJ处于中低位（K<50，避免追高）
-            if golden_cross and k_cur < 50:
-                # 如有空仓先平空
-                if volume_short > 0:
+                # 【开多条件】金叉信号 + KDJ处于中低位（K<50，避免追高）
+                if golden_cross and k_cur < 50:
+                    # 如有空仓先平空
+                    if volume_short > 0:
+                        target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
+                        print(f"[KDJ策略] 金叉平空：{volume_short}手")
+
+                    # 开多仓
+                    if volume_long == 0:
+                        target_pos.set_target_volume(VOLUME)   # 做多：TargetPosTask自动追单到目标仓位
+                        print(f"[KDJ策略] 金叉开多：{VOLUME}手，K={k_cur:.2f}")
+
+                # 【开空条件】死叉信号 + KDJ处于中高位（K>50，避免追空低位）
+                elif death_cross and k_cur > 50:
+                    # 如有多仓先平多
+                    if volume_long > 0:
+                        target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
+                        print(f"[KDJ策略] 死叉平多：{volume_long}手")
+
+                    # 开空仓
+                    if volume_short == 0:
+                        target_pos.set_target_volume(-VOLUME)  # 做空：TargetPosTask自动追单到目标仓位
+                        print(f"[KDJ策略] 死叉开空：{VOLUME}手，K={k_cur:.2f}")
+
+                # 【止损：超买区平多仓】K进入超买区（>80），趋势可能反转，平多仓保护利润
+                if volume_long > 0 and k_cur > OVERBUY:
                     target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
-                    print(f"[KDJ策略] 金叉平空：{volume_short}手")
+                    print(f"[KDJ策略] 超买止盈平多：K={k_cur:.2f}>{OVERBUY}")
 
-                # 开多仓
-                if volume_long == 0:
-                    target_pos.set_target_volume(VOLUME)   # 做多：TargetPosTask自动追单到目标仓位
-                    print(f"[KDJ策略] 金叉开多：{VOLUME}手，K={k_cur:.2f}")
-
-            # 【开空条件】死叉信号 + KDJ处于中高位（K>50，避免追空低位）
-            elif death_cross and k_cur > 50:
-                # 如有多仓先平多
-                if volume_long > 0:
+                # 【止损：超卖区平空仓】K进入超卖区（<20），趋势可能反转，平空仓保护利润
+                if volume_short > 0 and k_cur < OVERSELL:
                     target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
-                    print(f"[KDJ策略] 死叉平多：{volume_long}手")
+                    print(f"[KDJ策略] 超卖止盈平空：K={k_cur:.2f}<{OVERSELL}")
 
-                # 开空仓
-                if volume_short == 0:
-                    target_pos.set_target_volume(-VOLUME)  # 做空：TargetPosTask自动追单到目标仓位
-                    print(f"[KDJ策略] 死叉开空：{VOLUME}手，K={k_cur:.2f}")
+    except KeyboardInterrupt:
+        print("[KDJ策略] 用户中断，策略停止运行")
+    finally:
+        api.close()
+        print("[KDJ策略] API连接已关闭")
 
-            # 【止损：超买区平多仓】K进入超买区（>80），趋势可能反转，平多仓保护利润
-            if volume_long > 0 and k_cur > OVERBUY:
-                target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
-                print(f"[KDJ策略] 超买止盈平多：K={k_cur:.2f}>{OVERBUY}")
 
-            # 【止损：超卖区平空仓】K进入超卖区（<20），趋势可能反转，平空仓保护利润
-            if volume_short > 0 and k_cur < OVERSELL:
-                target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
-                print(f"[KDJ策略] 超卖止盈平空：K={k_cur:.2f}<{OVERSELL}")
-
-except KeyboardInterrupt:
-    print("[KDJ策略] 用户中断，策略停止运行")
-finally:
-    api.close()
-    print("[KDJ策略] API连接已关闭")
+if __name__ == "__main__":
+    main()

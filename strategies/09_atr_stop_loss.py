@@ -124,175 +124,180 @@ DATA_LENGTH = 300                # 获取K线数量
 # ============================================================
 # 初始化 TqApi
 # ============================================================
-api = TqApi(
-    account=TqSim(),
-    auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD")
-)
+def main():
+    api = TqApi(
+        account=TqSim(),
+        auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD")
+    )
 
-# 订阅K线数据
-klines = api.get_kline_serial(SYMBOL, KLINE_DURATION, data_length=DATA_LENGTH)
+    # 订阅K线数据
+    klines = api.get_kline_serial(SYMBOL, KLINE_DURATION, data_length=DATA_LENGTH)
 
-# 订阅实时报价（用于ATR止损追踪需实时最新价）
-quote = api.get_quote(SYMBOL)
+    # 订阅实时报价（用于ATR止损追踪需实时最新价）
+    quote = api.get_quote(SYMBOL)
 
-print(f"[ATR止损策略] 启动成功，交易品种：{SYMBOL}")
-print(f"[ATR止损策略] 参数：MA快线={MA_FAST}，MA慢线={MA_SLOW}，ATR周期={ATR_N}，ATR倍数={ATR_MULTIPLIER}")
+    print(f"[ATR止损策略] 启动成功，交易品种：{SYMBOL}")
+    print(f"[ATR止损策略] 参数：MA快线={MA_FAST}，MA慢线={MA_SLOW}，ATR周期={ATR_N}，ATR倍数={ATR_MULTIPLIER}")
 
-# 追踪止损线状态（程序运行期间保持状态）
-long_stop_price = 0.0    # 当前多仓追踪止损价格（只增不减）
-short_stop_price = float('inf')  # 当前空仓追踪止损价格（只减不增）
-
-
-def calc_atr(klines, n=14):
-    """
-    计算ATR（平均真实波幅）
-
-    True Range = max(High-Low, |High-PrevClose|, |Low-PrevClose|)
-    ATR = EMA(TR, N)
-
-    参数：
-        klines: K线数据DataFrame
-        n: ATR计算周期
-
-    返回：
-        ATR pandas Series
-    """
-    high = klines["high"]
-    low = klines["low"]
-    close = klines["close"]
-
-    # 计算前一收盘价（shift(1)向后移动1位）
-    prev_close = close.shift(1)
-
-    # 真实波幅TR = max(当前高低价差, 当前高与前收盘差, 当前低与前收盘差)
-    tr1 = high - low                          # 当日高低价差
-    tr2 = (high - prev_close).abs()           # 当日最高与前收盘差的绝对值
-    tr3 = (low - prev_close).abs()            # 当日最低与前收盘差的绝对值
-
-    # 取三者最大值作为TR
-    tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
-
-    # 用EMA平滑TR得到ATR
-    atr = ema(tr, n)
-
-    return atr
+    # 追踪止损线状态（程序运行期间保持状态）
+    long_stop_price = 0.0    # 当前多仓追踪止损价格（只增不减）
+    short_stop_price = float('inf')  # 当前空仓追踪止损价格（只减不增）
 
 
-# ============================================================
-# 主循环：K线更新处理信号，实时行情处理止损
-# ============================================================
-try:
-    # TargetPosTask：只需声明目标仓位，自动处理追单/撤单/部分成交
-    target_pos = TargetPosTask(api, SYMBOL)
+    def calc_atr(klines, n=14):
+        """
+        计算ATR（平均真实波幅）
 
-    while True:
-        api.wait_update()  # 等待数据更新
-        position = api.get_position(SYMBOL)
+        True Range = max(High-Low, |High-PrevClose|, |Low-PrevClose|)
+        ATR = EMA(TR, N)
 
-        # ---- 实时止损检查（每次行情更新都检查，不只在K线完成时）----
-        if api.is_changing(quote):
-            current_price = quote.last_price  # 当前最新成交价
+        参数：
+            klines: K线数据DataFrame
+            n: ATR计算周期
 
-            # 检查多仓止损（价格跌破追踪止损线）
-            if position.volume_long > 0 and long_stop_price > 0:
-                if current_price < long_stop_price:
-                    triggered_stop_price = long_stop_price
-                    target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
-                    long_stop_price = 0.0  # 重置止损价
-                    print(f"[ATR止损策略] 多仓止损触发：价格={current_price:.2f}，止损线={triggered_stop_price:.2f}")
+        返回：
+            ATR pandas Series
+        """
+        high = klines["high"]
+        low = klines["low"]
+        close = klines["close"]
 
-            # 检查空仓止损（价格涨破追踪止损线）
-            if position.volume_short > 0 and short_stop_price < float('inf'):
-                if current_price > short_stop_price:
-                    triggered_stop_price = short_stop_price
-                    target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
-                    short_stop_price = float('inf')  # 重置止损价
-                    print(f"[ATR止损策略] 空仓止损触发：价格={current_price:.2f}，止损线={triggered_stop_price:.2f}")
+        # 计算前一收盘价（shift(1)向后移动1位）
+        prev_close = close.shift(1)
 
-        # ---- K线更新：计算指标并更新追踪止损线 ----
-        if api.is_changing(klines):
+        # 真实波幅TR = max(当前高低价差, 当前高与前收盘差, 当前低与前收盘差)
+        tr1 = high - low                          # 当日高低价差
+        tr2 = (high - prev_close).abs()           # 当日最高与前收盘差的绝对值
+        tr3 = (low - prev_close).abs()            # 当日最低与前收盘差的绝对值
 
-            # 计算均线
-            close = klines["close"]
-            ma_fast = ma(close, MA_FAST)    # 快速均线
-            ma_slow = ma(close, MA_SLOW)    # 慢速均线
+        # 取三者最大值作为TR
+        tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
 
-            # 计算ATR
-            atr = calc_atr(klines, n=ATR_N)
+        # 用EMA平滑TR得到ATR
+        atr = ema(tr, n)
 
-            # 取最新完成K线的数据（-2为最近完成K线）
-            close_cur = close.iloc[-2]
-            atr_cur = atr.iloc[-2]
-            ma_fast_cur = ma_fast.iloc[-2]
-            ma_slow_cur = ma_slow.iloc[-2]
+        return atr
 
-            # 检测均线金叉/死叉
-            is_golden = bool(crossup(ma_fast, ma_slow).iloc[-2])   # 金叉：快线上穿慢线
-            is_death = bool(crossdown(ma_fast, ma_slow).iloc[-2])  # 死叉：快线下穿慢线
 
-            # 计算当前ATR止损距离
-            atr_stop_dist = ATR_MULTIPLIER * atr_cur  # 止损距离 = ATR倍数 × ATR值
+    # ============================================================
+    # 主循环：K线更新处理信号，实时行情处理止损
+    # ============================================================
+    try:
+        # TargetPosTask：只需声明目标仓位，自动处理追单/撤单/部分成交
+        target_pos = TargetPosTask(api, SYMBOL)
 
-            # ---- 更新追踪止损线（仅在持仓时更新）----
+        while True:
+            api.wait_update()  # 等待数据更新
+            position = api.get_position(SYMBOL)
 
-            if position.volume_long > 0:
-                # 多仓追踪止损线 = 收盘价 - ATR止损距离
-                new_long_stop = close_cur - atr_stop_dist
-                # 止损线只能上移（保护已有利润），取当前计算值与历史止损线的较大值
-                long_stop_price = max(long_stop_price, new_long_stop)
-                print(
-                    f"[ATR止损策略] 多仓止损线更新：{long_stop_price:.2f}"
-                    f"（ATR={atr_cur:.2f}，距离={atr_stop_dist:.2f}）"
-                )
+            # ---- 实时止损检查（每次行情更新都检查，不只在K线完成时）----
+            if api.is_changing(quote):
+                current_price = quote.last_price  # 当前最新成交价
 
-            if position.volume_short > 0:
-                # 空仓追踪止损线 = 收盘价 + ATR止损距离
-                new_short_stop = close_cur + atr_stop_dist
-                # 止损线只能下移，取当前计算值与历史止损线的较小值
-                short_stop_price = min(short_stop_price, new_short_stop)
-                print(
-                    f"[ATR止损策略] 空仓止损线更新：{short_stop_price:.2f}"
-                    f"（ATR={atr_cur:.2f}，距离={atr_stop_dist:.2f}）"
-                )
+                # 检查多仓止损（价格跌破追踪止损线）
+                if position.volume_long > 0 and long_stop_price > 0:
+                    if current_price < long_stop_price:
+                        triggered_stop_price = long_stop_price
+                        target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
+                        long_stop_price = 0.0  # 重置止损价
+                        print(f"[ATR止损策略] 多仓止损触发：价格={current_price:.2f}，止损线={triggered_stop_price:.2f}")
 
-            print(
-                f"[{klines['datetime'].iloc[-2]}] "
-                f"MA快={ma_fast_cur:.2f}，MA慢={ma_slow_cur:.2f}，"
-                f"ATR={atr_cur:.2f}，金叉={is_golden}，死叉={is_death}"
-            )
+                # 检查空仓止损（价格涨破追踪止损线）
+                if position.volume_short > 0 and short_stop_price < float('inf'):
+                    if current_price > short_stop_price:
+                        triggered_stop_price = short_stop_price
+                        target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
+                        short_stop_price = float('inf')  # 重置止损价
+                        print(f"[ATR止损策略] 空仓止损触发：价格={current_price:.2f}，止损线={triggered_stop_price:.2f}")
 
-            # ---- 开仓逻辑 ----
+            # ---- K线更新：计算指标并更新追踪止损线 ----
+            if api.is_changing(klines):
 
-            # 【金叉开多】快线上穿慢线，趋势转多，开多仓
-            if is_golden:
-                if position.volume_short > 0:
-                    # 先平空仓（反手）
-                    target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
-                    short_stop_price = float('inf')  # 重置空仓止损价
-                    print(f"[ATR止损策略] 金叉平空：{position.volume_short}手")
+                # 计算均线
+                close = klines["close"]
+                ma_fast = ma(close, MA_FAST)    # 快速均线
+                ma_slow = ma(close, MA_SLOW)    # 慢速均线
 
-                if position.volume_long == 0:
-                    target_pos.set_target_volume(VOLUME)   # 做多：TargetPosTask自动追单到目标仓位
-                    # 初始化追踪止损线
-                    long_stop_price = close_cur - atr_stop_dist
-                    print(f"[ATR止损策略] 金叉开多：{VOLUME}手，初始止损={long_stop_price:.2f}")
+                # 计算ATR
+                atr = calc_atr(klines, n=ATR_N)
 
-            # 【死叉开空】快线下穿慢线，趋势转空，开空仓
-            elif is_death:
+                # 取最新完成K线的数据（-2为最近完成K线）
+                close_cur = close.iloc[-2]
+                atr_cur = atr.iloc[-2]
+                ma_fast_cur = ma_fast.iloc[-2]
+                ma_slow_cur = ma_slow.iloc[-2]
+
+                # 检测均线金叉/死叉
+                is_golden = bool(crossup(ma_fast, ma_slow).iloc[-2])   # 金叉：快线上穿慢线
+                is_death = bool(crossdown(ma_fast, ma_slow).iloc[-2])  # 死叉：快线下穿慢线
+
+                # 计算当前ATR止损距离
+                atr_stop_dist = ATR_MULTIPLIER * atr_cur  # 止损距离 = ATR倍数 × ATR值
+
+                # ---- 更新追踪止损线（仅在持仓时更新）----
+
                 if position.volume_long > 0:
-                    # 先平多仓（反手）
-                    target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
-                    long_stop_price = 0.0  # 重置多仓止损价
-                    print(f"[ATR止损策略] 死叉平多：{position.volume_long}手")
+                    # 多仓追踪止损线 = 收盘价 - ATR止损距离
+                    new_long_stop = close_cur - atr_stop_dist
+                    # 止损线只能上移（保护已有利润），取当前计算值与历史止损线的较大值
+                    long_stop_price = max(long_stop_price, new_long_stop)
+                    print(
+                        f"[ATR止损策略] 多仓止损线更新：{long_stop_price:.2f}"
+                        f"（ATR={atr_cur:.2f}，距离={atr_stop_dist:.2f}）"
+                    )
 
-                if position.volume_short == 0:
-                    target_pos.set_target_volume(-VOLUME)  # 做空：TargetPosTask自动追单到目标仓位
-                    # 初始化追踪止损线
-                    short_stop_price = close_cur + atr_stop_dist
-                    print(f"[ATR止损策略] 死叉开空：{VOLUME}手，初始止损={short_stop_price:.2f}")
+                if position.volume_short > 0:
+                    # 空仓追踪止损线 = 收盘价 + ATR止损距离
+                    new_short_stop = close_cur + atr_stop_dist
+                    # 止损线只能下移，取当前计算值与历史止损线的较小值
+                    short_stop_price = min(short_stop_price, new_short_stop)
+                    print(
+                        f"[ATR止损策略] 空仓止损线更新：{short_stop_price:.2f}"
+                        f"（ATR={atr_cur:.2f}，距离={atr_stop_dist:.2f}）"
+                    )
 
-except KeyboardInterrupt:
-    print("[ATR止损策略] 用户中断，策略停止运行")
-finally:
-    api.close()
-    print("[ATR止损策略] API连接已关闭")
+                print(
+                    f"[{klines['datetime'].iloc[-2]}] "
+                    f"MA快={ma_fast_cur:.2f}，MA慢={ma_slow_cur:.2f}，"
+                    f"ATR={atr_cur:.2f}，金叉={is_golden}，死叉={is_death}"
+                )
+
+                # ---- 开仓逻辑 ----
+
+                # 【金叉开多】快线上穿慢线，趋势转多，开多仓
+                if is_golden:
+                    if position.volume_short > 0:
+                        # 先平空仓（反手）
+                        target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
+                        short_stop_price = float('inf')  # 重置空仓止损价
+                        print(f"[ATR止损策略] 金叉平空：{position.volume_short}手")
+
+                    if position.volume_long == 0:
+                        target_pos.set_target_volume(VOLUME)   # 做多：TargetPosTask自动追单到目标仓位
+                        # 初始化追踪止损线
+                        long_stop_price = close_cur - atr_stop_dist
+                        print(f"[ATR止损策略] 金叉开多：{VOLUME}手，初始止损={long_stop_price:.2f}")
+
+                # 【死叉开空】快线下穿慢线，趋势转空，开空仓
+                elif is_death:
+                    if position.volume_long > 0:
+                        # 先平多仓（反手）
+                        target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
+                        long_stop_price = 0.0  # 重置多仓止损价
+                        print(f"[ATR止损策略] 死叉平多：{position.volume_long}手")
+
+                    if position.volume_short == 0:
+                        target_pos.set_target_volume(-VOLUME)  # 做空：TargetPosTask自动追单到目标仓位
+                        # 初始化追踪止损线
+                        short_stop_price = close_cur + atr_stop_dist
+                        print(f"[ATR止损策略] 死叉开空：{VOLUME}手，初始止损={short_stop_price:.2f}")
+
+    except KeyboardInterrupt:
+        print("[ATR止损策略] 用户中断，策略停止运行")
+    finally:
+        api.close()
+        print("[ATR止损策略] API连接已关闭")
+
+
+if __name__ == "__main__":
+    main()

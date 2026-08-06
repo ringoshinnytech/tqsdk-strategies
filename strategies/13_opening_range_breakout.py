@@ -136,171 +136,176 @@ if ORB_END_MIN >= 60:
 # ============================================================
 # 初始化 TqApi
 # ============================================================
-api = TqApi(
-    account=TqSim(),
-    auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD")
-)
+def main():
+    api = TqApi(
+        account=TqSim(),
+        auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD")
+    )
 
-# 订阅1分钟K线
-klines = api.get_kline_serial(SYMBOL, KLINE_DURATION, data_length=100)
+    # 订阅1分钟K线
+    klines = api.get_kline_serial(SYMBOL, KLINE_DURATION, data_length=100)
 
-# 订阅实时报价
-quote = api.get_quote(SYMBOL)
+    # 订阅实时报价
+    quote = api.get_quote(SYMBOL)
 
-print(f"[ORB策略] 启动成功，交易品种：{SYMBOL}")
-print(
-    f"[ORB策略] 参数：开盘区间={OPEN_RANGE_MINUTES}分钟，"
-    f"区间结束时间={ORB_END_HOUR:02d}:{ORB_END_MIN:02d}，"
-    f"收盘平仓={CLOSE_HOUR:02d}:{CLOSE_MIN:02d}"
-)
+    print(f"[ORB策略] 启动成功，交易品种：{SYMBOL}")
+    print(
+        f"[ORB策略] 参数：开盘区间={OPEN_RANGE_MINUTES}分钟，"
+        f"区间结束时间={ORB_END_HOUR:02d}:{ORB_END_MIN:02d}，"
+        f"收盘平仓={CLOSE_HOUR:02d}:{CLOSE_MIN:02d}"
+    )
 
-# 每日状态变量（每天交易开始时重置）
-orb_high = None           # 开盘区间最高价
-orb_low = None            # 开盘区间最低价
-orb_confirmed = False     # 开盘区间是否已确立
-traded_today = False      # 今天是否已经交易过
-current_date = None       # 当前交易日期
-stop_loss_price = None    # 当前止损价格
-
-
-def reset_daily_state():
-    """重置每日交易状态变量"""
-    global orb_high, orb_low, orb_confirmed, traded_today, stop_loss_price
-    orb_high = None
-    orb_low = None
-    orb_confirmed = False
-    traded_today = False
-    stop_loss_price = None
-    print(f"[ORB策略] 新交易日开始，状态已重置")
+    # 每日状态变量（每天交易开始时重置）
+    orb_high = None           # 开盘区间最高价
+    orb_low = None            # 开盘区间最低价
+    orb_confirmed = False     # 开盘区间是否已确立
+    traded_today = False      # 今天是否已经交易过
+    current_date = None       # 当前交易日期
+    stop_loss_price = None    # 当前止损价格
 
 
-# ============================================================
-# 主循环
-# ============================================================
-try:
-    # TargetPosTask：只需声明目标仓位，自动处理追单/撤单/部分成交
-    target_pos = TargetPosTask(api, SYMBOL)
+    def reset_daily_state():
+        """重置每日交易状态变量"""
+        nonlocal orb_high, orb_low, orb_confirmed, traded_today, stop_loss_price
+        orb_high = None
+        orb_low = None
+        orb_confirmed = False
+        traded_today = False
+        stop_loss_price = None
+        print(f"[ORB策略] 新交易日开始，状态已重置")
 
-    while True:
-        api.wait_update()
-        position = api.get_position(SYMBOL)
 
-        if api.is_changing(klines):
+    # ============================================================
+    # 主循环
+    # ============================================================
+    try:
+        # TargetPosTask：只需声明目标仓位，自动处理追单/撤单/部分成交
+        target_pos = TargetPosTask(api, SYMBOL)
 
-            # 获取最新完成K线时间
-            bar_dt_ns = klines["datetime"].iloc[-2]  # 纳秒时间戳
+        while True:
+            api.wait_update()
+            position = api.get_position(SYMBOL)
 
-            # 将纳秒时间戳转换为datetime对象
-            bar_dt = datetime.datetime.fromtimestamp(bar_dt_ns / 1e9)
-            bar_date = bar_dt.date()
-            bar_time = bar_dt.time()
+            if api.is_changing(klines):
 
-            # ---- 检测新交易日 ----
-            if current_date != bar_date:
-                current_date = bar_date
-                reset_daily_state()  # 新的一天，重置状态
+                # 获取最新完成K线时间
+                bar_dt_ns = klines["datetime"].iloc[-2]  # 纳秒时间戳
 
-            # ---- 强制平仓：收盘前固定时间 ----
-            close_time = datetime.time(CLOSE_HOUR, CLOSE_MIN)
-            if bar_time >= close_time:
-                if position.volume_long > 0:
-                    target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
-                    print(f"[ORB策略] 收盘强制平多：{position.volume_long}手")
-                if position.volume_short > 0:
-                    target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
-                    print(f"[ORB策略] 收盘强制平空：{position.volume_short}手")
-                continue  # 收盘时间后不再执行其他逻辑
+                # 将纳秒时间戳转换为datetime对象
+                bar_dt = datetime.datetime.fromtimestamp(bar_dt_ns / 1e9)
+                bar_date = bar_dt.date()
+                bar_time = bar_dt.time()
 
-            # ---- 开盘区间建立阶段 ----
-            # 在开盘区间时段内（开盘 ~ ORB结束时间），收集高低点
-            open_time = datetime.time(OPEN_HOUR, OPEN_MIN)
-            orb_end_time = datetime.time(ORB_END_HOUR, ORB_END_MIN)
+                # ---- 检测新交易日 ----
+                if current_date != bar_date:
+                    current_date = bar_date
+                    reset_daily_state()  # 新的一天，重置状态
 
-            if open_time <= bar_time < orb_end_time:
-                # 在开盘区间内，不断更新最高/最低价
-                bar_high = klines["high"].iloc[-2]
-                bar_low = klines["low"].iloc[-2]
+                # ---- 强制平仓：收盘前固定时间 ----
+                close_time = datetime.time(CLOSE_HOUR, CLOSE_MIN)
+                if bar_time >= close_time:
+                    if position.volume_long > 0:
+                        target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
+                        print(f"[ORB策略] 收盘强制平多：{position.volume_long}手")
+                    if position.volume_short > 0:
+                        target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
+                        print(f"[ORB策略] 收盘强制平空：{position.volume_short}手")
+                    continue  # 收盘时间后不再执行其他逻辑
 
-                if orb_high is None:
-                    orb_high = bar_high
-                    orb_low = bar_low
-                else:
-                    orb_high = max(orb_high, bar_high)  # 滚动更新最高价
-                    orb_low = min(orb_low, bar_low)     # 滚动更新最低价
+                # ---- 开盘区间建立阶段 ----
+                # 在开盘区间时段内（开盘 ~ ORB结束时间），收集高低点
+                open_time = datetime.time(OPEN_HOUR, OPEN_MIN)
+                orb_end_time = datetime.time(ORB_END_HOUR, ORB_END_MIN)
 
-                print(
-                    f"[ORB策略] 建立开盘区间中 {bar_time}："
-                    f"区间高={orb_high:.2f}，区间低={orb_low:.2f}"
-                )
+                if open_time <= bar_time < orb_end_time:
+                    # 在开盘区间内，不断更新最高/最低价
+                    bar_high = klines["high"].iloc[-2]
+                    bar_low = klines["low"].iloc[-2]
 
-            # ---- 开盘区间确立 ----
-            elif bar_time >= orb_end_time and not orb_confirmed:
-                # 开盘区间时间结束，区间确立
-                if orb_high is not None and orb_low is not None:
-                    orb_confirmed = True
-                    orb_range = orb_high - orb_low  # 区间宽度
+                    if orb_high is None:
+                        orb_high = bar_high
+                        orb_low = bar_low
+                    else:
+                        orb_high = max(orb_high, bar_high)  # 滚动更新最高价
+                        orb_low = min(orb_low, bar_low)     # 滚动更新最低价
+
                     print(
-                        f"[ORB策略] 开盘区间确立：高={orb_high:.2f}，"
-                        f"低={orb_low:.2f}，宽度={orb_range:.2f}"
+                        f"[ORB策略] 建立开盘区间中 {bar_time}："
+                        f"区间高={orb_high:.2f}，区间低={orb_low:.2f}"
                     )
 
-            # ---- 突破交易阶段 ----
-            elif orb_confirmed and not traded_today:
-                current_price = quote.last_price  # 实时价格
-                if current_price <= 0 or current_price != current_price:
-                    continue
-
-                orb_range = orb_high - orb_low  # 区间宽度
-                stop_dist = orb_range * STOP_LOSS_MULTIPLIER  # 止损距离
-
-
-                # ---- 止损检查（持仓时实时监控）----
-                if stop_loss_price is not None:
-                    if position.volume_long > 0 and current_price < stop_loss_price:
-                        target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
+                # ---- 开盘区间确立 ----
+                elif bar_time >= orb_end_time and not orb_confirmed:
+                    # 开盘区间时间结束，区间确立
+                    if orb_high is not None and orb_low is not None:
+                        orb_confirmed = True
+                        orb_range = orb_high - orb_low  # 区间宽度
                         print(
-                            f"[ORB策略] 多仓止损触发：价格={current_price:.2f}，"
-                            f"止损线={stop_loss_price:.2f}"
+                            f"[ORB策略] 开盘区间确立：高={orb_high:.2f}，"
+                            f"低={orb_low:.2f}，宽度={orb_range:.2f}"
                         )
-                        traded_today = True  # 止损后今日不再交易
+
+                # ---- 突破交易阶段 ----
+                elif orb_confirmed and not traded_today:
+                    current_price = quote.last_price  # 实时价格
+                    if current_price <= 0 or current_price != current_price:
                         continue
 
-                    if position.volume_short > 0 and current_price > stop_loss_price:
-                        target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
-                        print(
-                            f"[ORB策略] 空仓止损触发：价格={current_price:.2f}，"
-                            f"止损线={stop_loss_price:.2f}"
-                        )
-                        traded_today = True
-                        continue
+                    orb_range = orb_high - orb_low  # 区间宽度
+                    stop_dist = orb_range * STOP_LOSS_MULTIPLIER  # 止损距离
 
-                # ---- 无持仓时判断突破信号 ----
-                if position.volume_long == 0 and position.volume_short == 0:
 
-                    # 【向上突破】价格突破区间高点，做多
-                    if current_price > orb_high:
-                        target_pos.set_target_volume(VOLUME)   # 做多：TargetPosTask自动追单到目标仓位
-                        stop_loss_price = current_price - stop_dist  # 设置止损价
-                        traded_today = True  # 标记今日已交易（只交易一次）
-                        print(
-                            f"[ORB策略] 向上突破开多！"
-                            f"价格={current_price:.2f}，区间高={orb_high:.2f}，"
-                            f"止损={stop_loss_price:.2f}，开{VOLUME}手"
-                        )
+                    # ---- 止损检查（持仓时实时监控）----
+                    if stop_loss_price is not None:
+                        if position.volume_long > 0 and current_price < stop_loss_price:
+                            target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
+                            print(
+                                f"[ORB策略] 多仓止损触发：价格={current_price:.2f}，"
+                                f"止损线={stop_loss_price:.2f}"
+                            )
+                            traded_today = True  # 止损后今日不再交易
+                            continue
 
-                    # 【向下突破】价格跌破区间低点，做空
-                    elif current_price < orb_low:
-                        target_pos.set_target_volume(-VOLUME)  # 做空：TargetPosTask自动追单到目标仓位
-                        stop_loss_price = current_price + stop_dist  # 设置止损价
-                        traded_today = True
-                        print(
-                            f"[ORB策略] 向下突破开空！"
-                            f"价格={current_price:.2f}，区间低={orb_low:.2f}，"
-                            f"止损={stop_loss_price:.2f}，开{VOLUME}手"
-                        )
+                        if position.volume_short > 0 and current_price > stop_loss_price:
+                            target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
+                            print(
+                                f"[ORB策略] 空仓止损触发：价格={current_price:.2f}，"
+                                f"止损线={stop_loss_price:.2f}"
+                            )
+                            traded_today = True
+                            continue
 
-except KeyboardInterrupt:
-    print("[ORB策略] 用户中断，策略停止运行")
-finally:
-    api.close()
-    print("[ORB策略] API连接已关闭")
+                    # ---- 无持仓时判断突破信号 ----
+                    if position.volume_long == 0 and position.volume_short == 0:
+
+                        # 【向上突破】价格突破区间高点，做多
+                        if current_price > orb_high:
+                            target_pos.set_target_volume(VOLUME)   # 做多：TargetPosTask自动追单到目标仓位
+                            stop_loss_price = current_price - stop_dist  # 设置止损价
+                            traded_today = True  # 标记今日已交易（只交易一次）
+                            print(
+                                f"[ORB策略] 向上突破开多！"
+                                f"价格={current_price:.2f}，区间高={orb_high:.2f}，"
+                                f"止损={stop_loss_price:.2f}，开{VOLUME}手"
+                            )
+
+                        # 【向下突破】价格跌破区间低点，做空
+                        elif current_price < orb_low:
+                            target_pos.set_target_volume(-VOLUME)  # 做空：TargetPosTask自动追单到目标仓位
+                            stop_loss_price = current_price + stop_dist  # 设置止损价
+                            traded_today = True
+                            print(
+                                f"[ORB策略] 向下突破开空！"
+                                f"价格={current_price:.2f}，区间低={orb_low:.2f}，"
+                                f"止损={stop_loss_price:.2f}，开{VOLUME}手"
+                            )
+
+    except KeyboardInterrupt:
+        print("[ORB策略] 用户中断，策略停止运行")
+    finally:
+        api.close()
+        print("[ORB策略] API连接已关闭")
+
+
+if __name__ == "__main__":
+    main()

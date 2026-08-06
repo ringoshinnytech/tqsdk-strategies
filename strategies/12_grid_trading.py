@@ -140,144 +140,149 @@ last_price = None
 # ============================================================
 # 初始化 TqApi
 # ============================================================
-api = TqApi(
-    account=TqSim(),
-    auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD")
-)
+def main():
+    api = TqApi(
+        account=TqSim(),
+        auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD")
+    )
 
-# 订阅实时报价（网格策略依赖实时行情，不依赖K线）
-quote = api.get_quote(SYMBOL)
+    # 订阅实时报价（网格策略依赖实时行情，不依赖K线）
+    quote = api.get_quote(SYMBOL)
 
-# 也订阅1分钟K线（用于初始化当前价格参考）
-klines_1m = api.get_kline_serial(SYMBOL, 60, data_length=10)
+    # 也订阅1分钟K线（用于初始化当前价格参考）
+    klines_1m = api.get_kline_serial(SYMBOL, 60, data_length=10)
 
-print(f"[网格策略] 启动成功，交易品种：{SYMBOL}")
-print(f"[网格策略] 最大持仓={MAX_GRID_POSITION}手，每格交易{VOLUME}手")
-
-
-def get_grid_below(price, grid_lines):
-    """
-    获取当前价格下方最近的网格线
-
-    参数：
-        price: 当前价格
-        grid_lines: 网格线列表（从低到高排序）
-
-    返回：
-        下方最近的网格线价格，如无则返回None
-    """
-    below = [g for g in grid_lines if g < price]
-    return below[-1] if below else None
+    print(f"[网格策略] 启动成功，交易品种：{SYMBOL}")
+    print(f"[网格策略] 最大持仓={MAX_GRID_POSITION}手，每格交易{VOLUME}手")
 
 
-def get_grid_above(price, grid_lines):
-    """
-    获取当前价格上方最近的网格线
+    def get_grid_below(price, grid_lines):
+        """
+        获取当前价格下方最近的网格线
 
-    参数：
-        price: 当前价格
-        grid_lines: 网格线列表（从低到高排序）
+        参数：
+            price: 当前价格
+            grid_lines: 网格线列表（从低到高排序）
 
-    返回：
-        上方最近的网格线价格，如无则返回None
-    """
-    above = [g for g in grid_lines if g > price]
-    return above[0] if above else None
+        返回：
+            下方最近的网格线价格，如无则返回None
+        """
+        below = [g for g in grid_lines if g < price]
+        return below[-1] if below else None
 
 
-# ============================================================
-# 主循环：实时监控价格变化并执行网格交易
-# ============================================================
-try:
-    # TargetPosTask：只需声明目标仓位，自动处理追单/撤单/部分成交
-    target_pos = TargetPosTask(api, SYMBOL)
+    def get_grid_above(price, grid_lines):
+        """
+        获取当前价格上方最近的网格线
 
-    while True:
-        api.wait_update()
-        position = api.get_position(SYMBOL)
+        参数：
+            price: 当前价格
+            grid_lines: 网格线列表（从低到高排序）
 
-        # 监控实时报价变化
-        if api.is_changing(quote):
-            current_price = quote.last_price  # 当前最新成交价
+        返回：
+            上方最近的网格线价格，如无则返回None
+        """
+        above = [g for g in grid_lines if g > price]
+        return above[0] if above else None
 
-            # 价格无效时跳过
-            if current_price != current_price or current_price <= 0:
-                continue
 
-            # 初始化last_price（第一次运行）
-            if last_price is None:
+    # ============================================================
+    # 主循环：实时监控价格变化并执行网格交易
+    # ============================================================
+    try:
+        # TargetPosTask：只需声明目标仓位，自动处理追单/撤单/部分成交
+        target_pos = TargetPosTask(api, SYMBOL)
+
+        while True:
+            api.wait_update()
+            position = api.get_position(SYMBOL)
+
+            # 监控实时报价变化
+            if api.is_changing(quote):
+                current_price = quote.last_price  # 当前最新成交价
+
+                # 价格无效时跳过
+                if current_price != current_price or current_price <= 0:
+                    continue
+
+                # 初始化last_price（第一次运行）
+                if last_price is None:
+                    last_price = current_price
+                    print(f"[网格策略] 初始化价格：{current_price}")
+                    continue
+
+                # 查询当前总持仓
+                total_long = position.volume_long   # 总多仓数量
+
+                # ---- 价格突破区间上限：清仓 ----
+                if current_price >= GRID_HIGH:
+                    if total_long > 0:
+                        target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
+                        # 重置所有网格状态
+                        for line in grid_lines:
+                            grid_has_position[line] = False
+                        print(f"[网格策略] 价格突破上限{GRID_HIGH}，清空全部多仓{total_long}手")
+
+                    last_price = current_price
+                    continue
+
+                # ---- 遍历所有网格线，检测是否发生穿越 ----
+                for grid_price in grid_lines:
+
+                    # 检测价格从上方下穿网格线（上一价格>网格线 且 当前价格<网格线）
+                    # 触发买入逻辑：在网格线附近买入
+                    price_crossed_down = (last_price > grid_price) and (current_price <= grid_price)
+
+                    # 检测价格从下方上穿网格线（上一价格<网格线 且 当前价格>网格线）
+                    # 触发卖出逻辑：在网格线附近卖出（平仓）
+                    price_crossed_up = (last_price < grid_price) and (current_price >= grid_price)
+
+                    # 【买入逻辑】价格下穿网格线且该层没有持仓
+                    if price_crossed_down and not grid_has_position[grid_price]:
+                        # 检查总持仓是否超过上限
+                        if total_long < MAX_GRID_POSITION:
+                            new_total_long = min(total_long + VOLUME, MAX_GRID_POSITION)
+                            target_pos.set_target_volume(new_total_long)   # 做多：TargetPosTask自动追单到目标仓位
+                            grid_has_position[grid_price] = True  # 标记该层有持仓
+                            total_long = new_total_long  # 更新本地持仓计数
+                            print(
+                                f"[网格策略] 买入：网格线={grid_price}，"
+                                f"当前价={current_price:.2f}，买入{VOLUME}手"
+                            )
+
+                    # 【卖出逻辑】价格上穿网格线且下方相邻网格有持仓
+                    if price_crossed_up:
+                        # 找下方最近的持仓网格（卖出下方的持仓，实现低买高卖）
+                        grid_below = get_grid_below(grid_price, grid_lines)
+                        if grid_below is not None and grid_has_position.get(grid_below, False):
+                            new_total_long = max(total_long - VOLUME, 0)
+                            target_pos.set_target_volume(new_total_long)           # 平仓：TargetPosTask自动平掉全部持仓
+                            grid_has_position[grid_below] = False  # 清除该层持仓状态
+                            total_long = new_total_long
+                            profit_estimate = (grid_price - grid_below) * VOLUME
+                            print(
+                                f"[网格策略] 卖出：网格线={grid_price}，"
+                                f"买入层={grid_below}，卖出{VOLUME}手，"
+                                f"预估利润≈{profit_estimate}点×合约乘数"
+                            )
+
+                # 更新上次价格
                 last_price = current_price
-                print(f"[网格策略] 初始化价格：{current_price}")
-                continue
 
-            # 查询当前总持仓
-            total_long = position.volume_long   # 总多仓数量
+                # 定期打印持仓状态
+                active_grids = [g for g, has_pos in grid_has_position.items() if has_pos]
+                if active_grids:
+                    print(
+                        f"[网格策略] 当前价={current_price:.2f}，"
+                        f"持仓网格={active_grids}，总持仓={total_long}手"
+                    )
 
-            # ---- 价格突破区间上限：清仓 ----
-            if current_price >= GRID_HIGH:
-                if total_long > 0:
-                    target_pos.set_target_volume(0)           # 平仓：TargetPosTask自动平掉全部持仓
-                    # 重置所有网格状态
-                    for line in grid_lines:
-                        grid_has_position[line] = False
-                    print(f"[网格策略] 价格突破上限{GRID_HIGH}，清空全部多仓{total_long}手")
+    except KeyboardInterrupt:
+        print("[网格策略] 用户中断，策略停止运行")
+    finally:
+        api.close()
+        print("[网格策略] API连接已关闭")
 
-                last_price = current_price
-                continue
 
-            # ---- 遍历所有网格线，检测是否发生穿越 ----
-            for grid_price in grid_lines:
-
-                # 检测价格从上方下穿网格线（上一价格>网格线 且 当前价格<网格线）
-                # 触发买入逻辑：在网格线附近买入
-                price_crossed_down = (last_price > grid_price) and (current_price <= grid_price)
-
-                # 检测价格从下方上穿网格线（上一价格<网格线 且 当前价格>网格线）
-                # 触发卖出逻辑：在网格线附近卖出（平仓）
-                price_crossed_up = (last_price < grid_price) and (current_price >= grid_price)
-
-                # 【买入逻辑】价格下穿网格线且该层没有持仓
-                if price_crossed_down and not grid_has_position[grid_price]:
-                    # 检查总持仓是否超过上限
-                    if total_long < MAX_GRID_POSITION:
-                        new_total_long = min(total_long + VOLUME, MAX_GRID_POSITION)
-                        target_pos.set_target_volume(new_total_long)   # 做多：TargetPosTask自动追单到目标仓位
-                        grid_has_position[grid_price] = True  # 标记该层有持仓
-                        total_long = new_total_long  # 更新本地持仓计数
-                        print(
-                            f"[网格策略] 买入：网格线={grid_price}，"
-                            f"当前价={current_price:.2f}，买入{VOLUME}手"
-                        )
-
-                # 【卖出逻辑】价格上穿网格线且下方相邻网格有持仓
-                if price_crossed_up:
-                    # 找下方最近的持仓网格（卖出下方的持仓，实现低买高卖）
-                    grid_below = get_grid_below(grid_price, grid_lines)
-                    if grid_below is not None and grid_has_position.get(grid_below, False):
-                        new_total_long = max(total_long - VOLUME, 0)
-                        target_pos.set_target_volume(new_total_long)           # 平仓：TargetPosTask自动平掉全部持仓
-                        grid_has_position[grid_below] = False  # 清除该层持仓状态
-                        total_long = new_total_long
-                        profit_estimate = (grid_price - grid_below) * VOLUME
-                        print(
-                            f"[网格策略] 卖出：网格线={grid_price}，"
-                            f"买入层={grid_below}，卖出{VOLUME}手，"
-                            f"预估利润≈{profit_estimate}点×合约乘数"
-                        )
-
-            # 更新上次价格
-            last_price = current_price
-
-            # 定期打印持仓状态
-            active_grids = [g for g, has_pos in grid_has_position.items() if has_pos]
-            if active_grids:
-                print(
-                    f"[网格策略] 当前价={current_price:.2f}，"
-                    f"持仓网格={active_grids}，总持仓={total_long}手"
-                )
-
-except KeyboardInterrupt:
-    print("[网格策略] 用户中断，策略停止运行")
-finally:
-    api.close()
-    print("[网格策略] API连接已关闭")
+if __name__ == "__main__":
+    main()
